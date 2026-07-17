@@ -1,15 +1,13 @@
-// Migrazione UNA TANTUM: importa i vini rosati da frontend/src/data/data.js
-// (VINI_ROSATI) nel database. Uso: node scripts/importRosati.js
+// Template di importazione per la categoria "rosati": incolla i dati
+// reali in ROSATI e lancia lo script una volta. Rifiuta l'esecuzione
+// se la categoria contiene già documenti (vedi guard sotto).
+// Uso: node scripts/importRosati.js
 require("dotenv").config();
 const mongoose = require("mongoose");
 const Wine = require("../models/Wine");
 
 const ROSATI = [
-  { name: "Rosamara Costaripa", regione: "Lombardia", description: "Chiaretto del Garda color petalo di rosa: fragolina, agrumi e sorso fresco — l'eleganza dell'estate sul lago." },
-  { name: "Mière Rosato Salento Calò", regione: "Puglia", description: "Rosato salentino da Negroamaro: ciliegia, melograno e sorso sapido — la grande tradizione pugliese del rosa." },
-  { name: "Charme Rosè Firriato", regione: "Sicilia", description: "Rosato siciliano luminoso e profumato: piccoli frutti rossi e freschezza — pensato per l'aperitivo al tramonto." },
-  { name: "Rosato Perolla Agricola San Felice", regione: "Toscana", description: "Rosato maremmano di Sangiovese: fragrante, asciutto, versatile — da tutto pasto estivo." },
-  { name: "Scalabrone Rosato Antinori", regione: "Toscana", description: "Il rosato di Bolgheri di casa Antinori: frutti rossi croccanti e sale marino — porta il nome del brigante della zona." },
+  // incolla qui i dati reali (name, regione, description, ...)
 ];
 
 const run = async () => {

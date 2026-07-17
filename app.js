@@ -55,7 +55,10 @@ app.use(
 );
 
 app.use(helmet());
-app.use(express.json({ limit: "10kb" }));
+// 10kb bastava per login/account, ma il form vini incolla le foto come
+// data URI dentro il JSON (spesso centinaia di KB, anche qualche MB) —
+// serve un limite più permissivo per non rifiutare ogni salvataggio con foto
+app.use(express.json({ limit: "15mb" }));
 app.use(cookieParser());
 app.use(middleware.requestLogger);
 
