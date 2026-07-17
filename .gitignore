@@ -1,0 +1,10 @@
+node_modules
+
+# credenziali locali: mai in git (il template è .env.example)
+.env
+.env.*
+!.env.example
+
+# richieste .rest di prova: possono contenere credenziali reali
+requests/
+
