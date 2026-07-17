@@ -1,0 +1,22 @@
+name: Keep Render awake
+
+# Render (free tier) addormenta il servizio dopo ~15 minuti di inattività:
+# il primo visitatore dopo la pausa aspetta 30-60s di cold start. Un ping
+# a /health ogni 10 minuti lo tiene sveglio. NOTA: GitHub disattiva i
+# workflow schedulati dopo 60 giorni senza attività sul repo — basta un
+# commit qualsiasi (o riattivarlo dal tab Actions) per farlo ripartire.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://detoma-backend.onrender.com/health)
+          echo "health status: $status"
+          test "$status" = "200"
