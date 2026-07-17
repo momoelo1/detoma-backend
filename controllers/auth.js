@@ -8,7 +8,12 @@ const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000;
 const generateToken = (userId) =>
   jwt.sign({ userId }, process.env.SECRET, { expiresIn: TOKEN_TTL });
 
-const isProduction = process.env.NODE_ENV === "production";
+// Render non imposta NODE_ENV=production di default, ma imposta sempre
+// RENDER=true — usiamo entrambi così il cookie cross-site (frontend su
+// GitHub Pages, backend su Render: domini diversi) funziona a prescindere
+// da come sia configurato NODE_ENV sul dashboard.
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.RENDER === "true";
 
 const setCookies = (res, accessToken) => {
   res.cookie("accessToken", accessToken, {
