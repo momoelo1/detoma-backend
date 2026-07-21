@@ -5,9 +5,16 @@ const CATEGORIES = ["rossi", "bianchi", "rosati", "spumanti", "champagne", "liqu
 
 const AnnataSchema = new mongoose.Schema(
   {
-    // opzionale: lo champagne non ha un'annata da indicare, e anche
-    // per gli altri vini l'admin potrebbe non conoscerla
-    anno: { type: String },
+    // obbligatoria per tutte le categorie tranne champagne, che non
+    // ha un'annata da indicare in etichetta. Se in futuro un'altra
+    // categoria smette di chiedere l'annata nel form admin, va
+    // aggiunta anche qui, altrimenti il salvataggio fallirà di nuovo.
+    anno: {
+      type: String,
+      required: function () {
+        return this.parent().category !== "champagne";
+      },
+    },
     prezzo: { type: Number, required: true },
   },
   { _id: false },
