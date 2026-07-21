@@ -31,18 +31,40 @@ const unknownEndpoint = (req, res) => {
   res.status(404).json({ error: "unknown endpoint" });
 };
 
+// messaggi in italiano semplice per l'admin: il messaggio grezzo di
+// Mongoose ("Wine validation failed: annate.0.anno: Path `anno` is
+// required.") non significa nulla per chi non programma
+const FRIENDLY_FIELD_MESSAGES = {
+  name: "Il nome del vino è obbligatorio.",
+  category: "La categoria del vino non è valida.",
+  "annate.anno": "Manca l'annata su una delle righe di prezzo.",
+  "annate.prezzo": "Manca il prezzo su una delle righe.",
+  username: "Lo username non è valido.",
+  email: "L'email non è valida.",
+  password: "La password non rispetta i requisiti richiesti.",
+};
+
+const friendlyValidationMessage = (error) => {
+  const firstKey = Object.keys(error.errors)[0];
+  const detail = error.errors[firstKey];
+  const segments = detail.path.split(".");
+  const field = segments[segments.length - 1];
+  const lookupKey = segments[0] === "annate" ? `annate.${field}` : field;
+  return FRIENDLY_FIELD_MESSAGES[lookupKey] || `Il campo "${field}" non è valido.`;
+};
+
 const errorHandler = (error, req, res, next) => {
   if (error.name === "CastError") {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: "Dato non valido nella richiesta." });
   } else if (error.name === "ValidationError") {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: friendlyValidationMessage(error) });
   } else if (
     error.name === "MongoServerError" &&
     error.message.includes("E11000 duplicate key error")
   ) {
-    return res.status(400).json({ error: "duplicate key error" });
+    return res.status(400).json({ error: "Esiste già un elemento con questi dati." });
   } else if (error.name === "JsonWebTokenError") {
-    return res.status(401).json({ error: error.message });
+    return res.status(401).json({ error: "Sessione non valida, accedi di nuovo." });
   }
   next(error);
 };
