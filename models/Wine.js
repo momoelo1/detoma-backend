@@ -5,7 +5,9 @@ const CATEGORIES = ["rossi", "bianchi", "rosati", "spumanti", "champagne", "liqu
 
 const AnnataSchema = new mongoose.Schema(
   {
-    anno: { type: String, required: true },
+    // opzionale: lo champagne non ha un'annata da indicare, e anche
+    // per gli altri vini l'admin potrebbe non conoscerla
+    anno: { type: String },
     prezzo: { type: Number, required: true },
   },
   { _id: false },
