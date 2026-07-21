@@ -45,9 +45,10 @@ const FRIENDLY_FIELD_MESSAGES = {
 };
 
 const friendlyValidationMessage = (error) => {
+  // la chiave in error.errors porta il percorso completo ("annate.0.anno"),
+  // ma detail.path è relativo al subdocument (solo "anno") — serve la chiave
   const firstKey = Object.keys(error.errors)[0];
-  const detail = error.errors[firstKey];
-  const segments = detail.path.split(".");
+  const segments = firstKey.split(".");
   const field = segments[segments.length - 1];
   const lookupKey = segments[0] === "annate" ? `annate.${field}` : field;
   return FRIENDLY_FIELD_MESSAGES[lookupKey] || `Il campo "${field}" non è valido.`;
