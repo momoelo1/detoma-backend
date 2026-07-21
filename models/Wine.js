@@ -16,6 +16,7 @@ const WineSchema = new mongoose.Schema(
     name: { type: String, required: true },
     category: { type: String, required: true, enum: CATEGORIES },
     regione: { type: String },
+    paese: { type: String },
     colore: { type: String },
     anno: { type: String },
     description: { type: String },
