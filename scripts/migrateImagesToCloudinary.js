@@ -5,7 +5,9 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const config = require("../utils/config");
 const Wine = require("../models/Wine");
-const { uploadWineImage } = require("../utils/cloudinary");
+const { uploadImage } = require("../utils/cloudinary");
+
+const WINE_IMG_FOLDER = "enoteca-detoma/wines";
 
 const run = async () => {
   await mongoose.connect(config.MONGODB_URI);
@@ -15,7 +17,7 @@ const run = async () => {
 
   for (const wine of wines) {
     try {
-      const url = await uploadWineImage(wine.img);
+      const url = await uploadImage(wine.img, WINE_IMG_FOLDER);
       wine.img = url;
       await wine.save();
       console.log(`Migrated "${wine.name}" -> ${url}`);

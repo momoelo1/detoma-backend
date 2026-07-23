@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
 const loginRouter = require("./controllers/login");
 const userRouter = require("./controllers/users");
 const wineRouter = require("./controllers/wines");
+const beerRouter = require("./controllers/beers");
 const middleware = require("./utils/middleware");
 const logger = require("./utils/logger");
 
@@ -99,6 +100,7 @@ app.use(async (req, res, next) => {
 app.use("/api/login", loginRouter);
 app.use("/api/users", userRouter);
 app.use("/api/wines", wineRouter);
+app.use("/api/beers", beerRouter);
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
