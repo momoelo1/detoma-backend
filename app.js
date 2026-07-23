@@ -16,11 +16,16 @@ const logger = require("./utils/logger");
 mongoose.set("strictQuery", false);
 
 logger.info("connecting to", config.MONGODB_URI);
-mongoose
+// tenuta come promise (non solo side-effect): su Vercel un cold start può
+// impiegare più dei 10s di buffering interno di Mongoose, quindi le richieste
+// aspettano esplicitamente questa promise invece di affidarsi al buffer -
+// vedi il middleware subito sotto.
+const dbConnection = mongoose
   .connect(config.MONGODB_URI)
   .then(() => logger.info("connected to mongoDB"))
   .catch((e) => {
     logger.error("error connecting to mongoDB", e);
+    throw e;
   });
 
 const toOrigin = (url) => {
@@ -78,6 +83,17 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
+});
+
+// aspetta la vera connessione prima delle route che toccano il DB (non su
+// /health, che deve rispondere anche a connessione non ancora pronta)
+app.use(async (req, res, next) => {
+  try {
+    await dbConnection;
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use("/api/login", loginRouter);

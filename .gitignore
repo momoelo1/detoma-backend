@@ -8,3 +8,6 @@ node_modules
 # richieste .rest di prova: possono contenere credenziali reali
 requests/
 
+
+.vercel
+.env*
