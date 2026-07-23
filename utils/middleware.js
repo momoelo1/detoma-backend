@@ -67,7 +67,8 @@ const errorHandler = (error, req, res, next) => {
   } else if (error.name === "JsonWebTokenError") {
     return res.status(401).json({ error: "Sessione non valida, accedi di nuovo." });
   }
-  next(error);
+  logger.error("Unhandled error", error);
+  return res.status(500).json({ error: "Errore del server. Riprova più tardi." });
 };
 
 // C'è un solo utente possibile: essere autenticati equivale a essere

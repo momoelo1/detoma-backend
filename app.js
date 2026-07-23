@@ -21,7 +21,6 @@ mongoose
   .then(() => logger.info("connected to mongoDB"))
   .catch((e) => {
     logger.error("error connecting to mongoDB", e);
-    process.exit(1);
   });
 
 const toOrigin = (url) => {

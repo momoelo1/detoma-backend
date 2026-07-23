@@ -1,6 +1,7 @@
 const wineRouter = require("express").Router();
 const Wine = require("../models/Wine");
 const { tokenExtractor } = require("../utils/middleware");
+const { uploadWineImage } = require("../utils/cloudinary");
 
 // lettura: pubblica, la userà anche il sito del negozio
 wineRouter.get("/", async (req, res) => {
@@ -26,7 +27,7 @@ wineRouter.post("/", tokenExtractor, async (req, res) => {
     return res.status(400).json({ error: `category deve essere una di: ${Wine.CATEGORIES.join(", ")}` });
   }
 
-  const wine = new Wine(req.body);
+  const wine = new Wine({ ...req.body, img: await uploadWineImage(req.body.img) });
   const savedWine = await wine.save();
   res.status(201).json(savedWine);
 });
@@ -36,11 +37,13 @@ wineRouter.put("/:id", tokenExtractor, async (req, res) => {
     return res.status(400).json({ error: `category deve essere una di: ${Wine.CATEGORIES.join(", ")}` });
   }
 
-  const updatedWine = await Wine.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  if (!updatedWine) return res.status(404).json({ error: "vino non trovato" });
+  const wine = await Wine.findById(req.params.id);
+  if (!wine) return res.status(404).json({ error: "vino non trovato" });
+
+  wine.set(req.body);
+  if ("img" in req.body) wine.img = await uploadWineImage(req.body.img);
+
+  const updatedWine = await wine.save();
   res.json(updatedWine);
 });
 

@@ -15,7 +15,7 @@ loginRouter.post("/", async (req, res) => {
       const accessToken = generateToken(user._id);
       setCookies(res, accessToken);
       // il cookie httpOnly copre il caso stesso dominio/locale, ma tra
-      // GitHub Pages e Render è cross-site: Safari (ITP) e altri browser
+      // GitHub Pages e il backend è cross-site: Safari (ITP) e altri browser
       // possono scartarlo comunque. Il token in risposta permette al
       // frontend di inviarlo come header Authorization: Bearer, che
       // tokenExtractor già supporta come fallback.
