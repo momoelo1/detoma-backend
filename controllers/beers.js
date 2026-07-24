@@ -7,8 +7,8 @@ const BEER_IMG_FOLDER = "enoteca-detoma/beers";
 
 // lettura: pubblica, la userà anche il sito del negozio
 beerRouter.get("/", async (req, res) => {
-  const { category } = req.query;
-  const filter = category ? { category } : {};
+  const { producer } = req.query;
+  const filter = producer ? { producer } : {};
   const beers = await Beer.find(filter).sort({ name: 1 });
   res.json(beers);
 });
@@ -21,12 +21,12 @@ beerRouter.get("/:id", async (req, res) => {
 
 // scrittura: solo l'unico account amministratore
 beerRouter.post("/", tokenExtractor, async (req, res) => {
-  const { name, category } = req.body;
-  if (!name || !category) {
-    return res.status(400).json({ error: "name e category sono obbligatori" });
+  const { name, producer } = req.body;
+  if (!name || !producer) {
+    return res.status(400).json({ error: "name e producer sono obbligatori" });
   }
-  if (!Beer.CATEGORIES.includes(category)) {
-    return res.status(400).json({ error: `category deve essere una di: ${Beer.CATEGORIES.join(", ")}` });
+  if (!Beer.PRODUCERS.includes(producer)) {
+    return res.status(400).json({ error: `producer deve essere uno di: ${Beer.PRODUCERS.join(", ")}` });
   }
 
   const beer = new Beer({ ...req.body, img: await uploadImage(req.body.img, BEER_IMG_FOLDER) });
@@ -35,8 +35,8 @@ beerRouter.post("/", tokenExtractor, async (req, res) => {
 });
 
 beerRouter.put("/:id", tokenExtractor, async (req, res) => {
-  if (req.body.category && !Beer.CATEGORIES.includes(req.body.category)) {
-    return res.status(400).json({ error: `category deve essere una di: ${Beer.CATEGORIES.join(", ")}` });
+  if (req.body.producer && !Beer.PRODUCERS.includes(req.body.producer)) {
+    return res.status(400).json({ error: `producer deve essere uno di: ${Beer.PRODUCERS.join(", ")}` });
   }
 
   const beer = await Beer.findById(req.params.id);

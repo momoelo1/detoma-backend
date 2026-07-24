@@ -64,7 +64,7 @@ const BIRRE_SALENTO = [
   { name: "Pizzica", stile: "Belgian Ale Dorata", gradazione: "5,00%", prezzo: 9 },
 ];
 
-const BY_CATEGORY = {
+const BY_PRODUCER = {
   "32-via-dei-birrai": BIRRE_32,
   ribaldi: BIRRE_RIBALDI,
   gjulia: BIRRE_GJULIA,
@@ -84,8 +84,8 @@ const run = async () => {
     process.exit(1);
   }
 
-  const docs = Object.entries(BY_CATEGORY).flatMap(([category, beers]) =>
-    beers.map((b) => ({ ...b, category })),
+  const docs = Object.entries(BY_PRODUCER).flatMap(([producer, beers]) =>
+    beers.map((b) => ({ ...b, producer })),
   );
   const inserted = await Beer.insertMany(docs);
   console.log(`Importate ${inserted.length} birre.`);

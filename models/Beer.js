@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
 
-// stesse categorie già in uso sul sito pubblico (data.js → BEER_CATEGORIES),
-// qui sono i birrifici, non stili di birra
-const CATEGORIES = [
+// stessi birrifici già in uso sul sito pubblico (data.js → BEER_CATEGORIES);
+// il campo si chiama "producer" perché è quello che rappresenta davvero
+// (il birrificio), non una categoria di stile
+const PRODUCERS = [
   "32-via-dei-birrai",
   "ribaldi",
   "gjulia",
@@ -15,10 +16,11 @@ const CATEGORIES = [
 const BeerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    category: { type: String, required: true, enum: CATEGORIES },
+    producer: { type: String, required: true, enum: PRODUCERS },
     stile: { type: String },
     colore: { type: String },
     gradazione: { type: String },
+    formato: { type: String },
     img: { type: String },
     prezzo: { type: Number },
   },
@@ -33,6 +35,6 @@ BeerSchema.set("toJSON", {
   },
 });
 
-BeerSchema.statics.CATEGORIES = CATEGORIES;
+BeerSchema.statics.PRODUCERS = PRODUCERS;
 
 module.exports = mongoose.model("Beer", BeerSchema);
