@@ -20,7 +20,9 @@ const BeerSchema = new mongoose.Schema(
     stile: { type: String },
     colore: { type: String },
     gradazione: { type: String },
-    formato: { type: String },
+    // formato bottiglia/lattina in centilitri, es. 33 per "33cl" — numero
+    // puro, l'unità è implicita e fissa (niente "33cl"/"0,33l" misti)
+    formato: { type: Number },
     img: { type: String },
     prezzo: { type: Number },
   },
