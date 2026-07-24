@@ -17,8 +17,8 @@ const BeerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     producer: { type: String, required: true, enum: PRODUCERS },
+    // stile e colore unificati in un unico campo libero (es. "birra rossa")
     stile: { type: String },
-    colore: { type: String },
     gradazione: { type: String },
     // formato bottiglia/lattina in centilitri, es. 33 per "33cl" — numero
     // puro, l'unità è implicita e fissa (niente "33cl"/"0,33l" misti)
