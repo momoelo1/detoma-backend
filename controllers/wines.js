@@ -1,7 +1,7 @@
 const wineRouter = require("express").Router();
 const Wine = require("../models/Wine");
 const { tokenExtractor } = require("../utils/middleware");
-const { uploadImage } = require("../utils/cloudinary");
+const { uploadImage, deleteImage } = require("../utils/cloudinary");
 
 const WINE_IMG_FOLDER = "enoteca-detoma/wines";
 
@@ -45,6 +45,17 @@ wineRouter.put("/:id", tokenExtractor, async (req, res) => {
   wine.set(req.body);
   if ("img" in req.body) wine.img = await uploadImage(req.body.img, WINE_IMG_FOLDER);
 
+  const updatedWine = await wine.save();
+  res.json(updatedWine);
+});
+
+// rimuove SOLO la foto (Cloudinary + riferimento nel documento), non il vino
+wineRouter.delete("/:id/image", tokenExtractor, async (req, res) => {
+  const wine = await Wine.findById(req.params.id);
+  if (!wine) return res.status(404).json({ error: "vino non trovato" });
+
+  await deleteImage(wine.img);
+  wine.img = "";
   const updatedWine = await wine.save();
   res.json(updatedWine);
 });

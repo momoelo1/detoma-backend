@@ -1,7 +1,7 @@
 const beerRouter = require("express").Router();
 const Beer = require("../models/Beer");
 const { tokenExtractor } = require("../utils/middleware");
-const { uploadImage } = require("../utils/cloudinary");
+const { uploadImage, deleteImage } = require("../utils/cloudinary");
 
 const BEER_IMG_FOLDER = "enoteca-detoma/beers";
 
@@ -45,6 +45,17 @@ beerRouter.put("/:id", tokenExtractor, async (req, res) => {
   beer.set(req.body);
   if ("img" in req.body) beer.img = await uploadImage(req.body.img, BEER_IMG_FOLDER);
 
+  const updatedBeer = await beer.save();
+  res.json(updatedBeer);
+});
+
+// rimuove SOLO la foto (Cloudinary + riferimento nel documento), non la birra
+beerRouter.delete("/:id/image", tokenExtractor, async (req, res) => {
+  const beer = await Beer.findById(req.params.id);
+  if (!beer) return res.status(404).json({ error: "birra non trovata" });
+
+  await deleteImage(beer.img);
+  beer.img = "";
   const updatedBeer = await beer.save();
   res.json(updatedBeer);
 });
