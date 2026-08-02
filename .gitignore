@@ -8,6 +8,10 @@ node_modules
 # richieste .rest di prova: possono contenere credenziali reali
 requests/
 
+# foto sorgente degli import una tantum: pesano ~8MB e servono solo in
+# locale mentre si carica il catalogo, non al server
+scripts/import-assets/
+
 
 .vercel
 .env*
