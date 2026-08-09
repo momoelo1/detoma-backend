@@ -15,9 +15,32 @@ const getTokenFrom = async (req) => {
   try {
     const decodedToken = jwt.verify(token, process.env.SECRET);
     if (!decodedToken?.userId) return null;
-    return await User.findById(decodedToken.userId);
+
+    const user = await User.findById(decodedToken.userId);
+    if (!user) return null;
+
+    // firma valida e non scaduto non bastano: il token deve anche essere
+    // dell'ultima "generazione". Il logout incrementa tokenVersion, quindi
+    // un token emesso prima cade qui — è così che uscire revoca davvero la
+    // sessione invece di limitarsi a cancellare il cookie.
+    // NB: i token emessi prima di questa modifica non hanno il claim `tv`
+    // e finiscono qui anche loro: al primo deploy l'admin rifà l'accesso
+    // una volta, e da lì in poi la cosa è trasparente.
+    if (user.tokenVersion !== decodedToken.tv) {
+      logger.info("Access token revocato (tokenVersion non corrisponde)");
+      return null;
+    }
+    return user;
   } catch (error) {
-    logger.error("Failed to verify access token", error);
+    // La scadenza è fisiologica: il token dura 8h e ogni sessione che
+    // finisce passa di qui. A livello `error` riempiva i log di Vercel di
+    // allarmi su un evento normale. Un token malformato o con la firma
+    // sbagliata invece è un segnale vero e resta `error`.
+    if (error.name === "TokenExpiredError") {
+      logger.info("Access token scaduto il", error.expiredAt);
+    } else {
+      logger.error("Failed to verify access token", error);
+    }
     return null;
   }
 };
@@ -64,9 +87,12 @@ const errorHandler = (error, req, res, next) => {
     error.message.includes("E11000 duplicate key error")
   ) {
     return res.status(400).json({ error: "Esiste già un elemento con questi dati." });
-  } else if (error.name === "JsonWebTokenError") {
-    return res.status(401).json({ error: "Sessione non valida, accedi di nuovo." });
   }
+  // NB: qui non arriva mai un errore di JWT. `getTokenFrom` cattura sia
+  // JsonWebTokenError sia TokenExpiredError e risponde già 401 da
+  // `tokenExtractor`, senza passare da next(error). Il ramo che c'era
+  // era irraggiungibile: il messaggio all'admin lo costruisce il client
+  // dallo stato 401 (services/auth.js, `unauthorizedMessage`).
   logger.error("Unhandled error", error);
   return res.status(500).json({ error: "Errore del server. Riprova più tardi." });
 };

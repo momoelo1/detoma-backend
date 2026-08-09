@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const userRouter = require("express").Router();
 const User = require("../models/User");
 const { tokenExtractor } = require("../utils/middleware");
+const { generateToken, setCookies } = require("./auth");
 
 const PASSWORD_RULES = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
 
@@ -60,6 +61,12 @@ userRouter.put("/:id", tokenExtractor, async (req, res) => {
 
   if (email) update.email = email;
 
+  // cambiare password revoca tutte le sessioni: è il gesto con cui si
+  // reagisce a "credo che qualcuno sia entrato", e senza l'incremento di
+  // tokenVersion i token già emessi resterebbero validi fino alla
+  // scadenza naturale — cioè la password nuova non servirebbe a niente.
+  const passwordChanged = Boolean(password);
+
   if (password) {
     if (!PASSWORD_RULES.test(password)) {
       return res.status(400).json({ error: "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character" });
@@ -67,11 +74,24 @@ userRouter.put("/:id", tokenExtractor, async (req, res) => {
     update.passwordHash = await bcrypt.hash(password, 10);
   }
 
-  const updatedUser = await User.findByIdAndUpdate(req.params.id, update, {
-    new: true,
-    runValidators: true,
-  });
-  res.status(200).json(updatedUser);
+  const updatedUser = await User.findByIdAndUpdate(
+    req.params.id,
+    passwordChanged ? { $set: update, $inc: { tokenVersion: 1 } } : update,
+    { new: true, runValidators: true },
+  );
+
+  if (!passwordChanged) {
+    return res.status(200).json(updatedUser);
+  }
+
+  // la revoca appena fatta vale anche per il token con cui è arrivata
+  // questa richiesta: senza un token nuovo, chi cambia la password si
+  // troverebbe buttato fuori dal proprio pannello a metà lavoro. Stessa
+  // coppia del login — cookie httpOnly + token in chiaro nel corpo, che
+  // il client rispecchia in localStorage (Safari/ITP, vedi services/auth.js).
+  const accessToken = generateToken(updatedUser._id, updatedUser.tokenVersion);
+  setCookies(res, accessToken);
+  res.status(200).json({ ...updatedUser.toJSON(), token: accessToken });
 });
 
 module.exports = userRouter;

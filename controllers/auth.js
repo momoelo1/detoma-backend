@@ -5,8 +5,13 @@ const jwt = require("jsonwebtoken");
 const TOKEN_TTL = "8h";
 const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000;
 
-const generateToken = (userId) =>
-  jwt.sign({ userId }, process.env.SECRET, { expiresIn: TOKEN_TTL });
+// `tv` = tokenVersion dell'utente al momento dell'emissione. Il middleware
+// lo confronta con quello sul database a ogni richiesta: se il logout l'ha
+// incrementato, il token non vale più (vedi models/User.js).
+const generateToken = (userId, tokenVersion) =>
+  jwt.sign({ userId, tv: tokenVersion }, process.env.SECRET, {
+    expiresIn: TOKEN_TTL,
+  });
 
 // L'hosting non imposta sempre NODE_ENV=production di default, ma le
 // piattaforme si annunciano con le proprie variabili (RENDER=true,

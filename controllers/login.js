@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const loginRouter = require("express").Router();
 const User = require("../models/User");
 const { generateToken, setCookies, clearCookies } = require("./auth");
-const { tokenExtractor } = require("../utils/middleware");
+const { tokenExtractor, optionalTokenExtractor } = require("../utils/middleware");
 const logger = require("../utils/logger");
 
 // login con username + password
@@ -12,13 +12,8 @@ loginRouter.post("/", async (req, res) => {
     const user = await User.findOne({ username });
 
     if (user && (await bcrypt.compare(password, user.passwordHash))) {
-      const accessToken = generateToken(user._id);
+      const accessToken = generateToken(user._id, user.tokenVersion);
       setCookies(res, accessToken);
-      // il cookie httpOnly copre il caso stesso dominio/locale, ma tra
-      // GitHub Pages e il backend è cross-site: Safari (ITP) e altri browser
-      // possono scartarlo comunque. Il token in risposta permette al
-      // frontend di inviarlo come header Authorization: Bearer, che
-      // tokenExtractor già supporta come fallback.
       return res.status(200).json({
         id: user._id,
         username: user.username,
@@ -33,14 +28,21 @@ loginRouter.post("/", async (req, res) => {
   }
 });
 
-// sessione corrente: permette al frontend di sapere se è già collegato
-// (es. dopo un refresh della pagina)
 loginRouter.get("/", tokenExtractor, (req, res) => {
   const { _id: id, username, email } = req.user;
   res.status(200).json({ id, username, email });
 });
 
-loginRouter.post("/logout", (req, res) => {
+// `optionalTokenExtractor` e non `tokenExtractor`: uscire deve riuscire
+// anche con un token già scaduto o assente, altrimenti l'unico modo di
+// "chiudere" una sessione morta sarebbe un 401. Se invece il token è
+// ancora buono, incrementiamo tokenVersion: da quel momento tutte le
+// copie di quel token (cookie, localStorage, una eventualmente rubata)
+// vengono rifiutate, non solo quella nel browser che sta uscendo.
+loginRouter.post("/logout", optionalTokenExtractor, async (req, res) => {
+  if (req.user) {
+    await User.findByIdAndUpdate(req.user._id, { $inc: { tokenVersion: 1 } });
+  }
   clearCookies(res);
   res.status(204).end();
 });
