@@ -119,9 +119,17 @@ from a real phone against a local backend.
 
 ## One-off scripts
 
-`scripts/` holds only live, runnable scripts (`createAdmin.js`, `importBirre.js`,
-`importRossi.js`, `importAlimentari.js`). Spent migrations are **deleted**, not kept with
-their data stripped out.
+`scripts/` holds only live, runnable scripts. Spent migrations are **deleted**, not kept
+with their data stripped out — `importRossi.js` and `importBirre.js` went that way on
+2026-08-11, once their 207 reds and 37 beers were in production.
+
+What is left, and why:
+
+- `createAdmin.js` — the only way to create the single account, since `POST /api/users`
+  refuses a second one. Needed again only if the database is ever rebuilt.
+- `importAlimentari.js` — its import is done, but `imgFile` is still the map from each
+  `IMG_xxxx.jpg` in `scripts/import-assets/` to the product it belongs to, and 41 of the
+  46 food products still have no photo. Delete it when they all do.
 
 These connect to the **production** Atlas database via `.env`. `importAlimentari.js`
 supports `--dry-run`; add the same flag to any new script and run it first.
