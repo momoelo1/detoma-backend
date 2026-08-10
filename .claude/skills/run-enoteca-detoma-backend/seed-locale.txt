@@ -1,0 +1,25 @@
+# Catalogo minimo per far girare il frontend contro questo backend usa e getta.
+# Pensato per essere passato allo stdin del driver insieme a --hold:
+# admin = admin / Password1!
+
+seed-admin
+login
+
+post /api/wines {"name":"Barolo di prova","category":"rossi","regione":"Piemonte","paese":"Italia","annate":[{"anno":"2019","prezzo":42}]}
+expect 201
+post /api/wines {"name":"Gavi di prova","category":"bianchi","regione":"Piemonte","paese":"Italia","annate":[{"anno":"2022","prezzo":14}]}
+expect 201
+post /api/wines {"name":"Cerasuolo di prova","category":"rosati","regione":"Abruzzo","paese":"Italia","annate":[{"anno":"2023","prezzo":11}]}
+expect 201
+
+post /api/beers {"name":"Birra di prova","producer":"ribaldi","stile":"birra rossa","formato":33,"prezzo":5}
+expect 201
+
+post /api/alimentari {"name":"Formaggio di prova","category":"gastronomia","sottocategoria":"Formaggi","tipo":"Formaggio","formato":250,"prezzo":9}
+expect 201
+post /api/alimentari {"name":"Biscotti di prova","category":"dolceria","sottocategoria":"Biscotti","tipo":"Biscotto","formato":300,"prezzo":6}
+expect 201
+
+# il logout qui revocherebbe il token, ma il frontend fa il suo login: va bene
+get /api/wines
+count

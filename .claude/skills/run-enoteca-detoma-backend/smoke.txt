@@ -1,0 +1,128 @@
+# Giro completo dell'API su DB effimero: lettura pubblica, auth, CRUD vini,
+# enum, errori in italiano, revoca sessione. Nessuna riga tocca la produzione.
+
+get /health
+expect 200
+
+# --- lettura pubblica, senza token: e' voluta, non e' un buco
+get /api/wines
+expect 200
+count
+get /api/beers
+expect 200
+get /api/alimentari
+expect 200
+
+# --- scrittura senza token
+post /api/wines {"name":"Vietato","category":"rossi"}
+expect 401
+expect-body authentication required
+
+# --- primo account: la rotta si chiude dopo
+seed-admin
+post /api/users {"username":"secondo","email":"due@example.com","password":"Password1!"}
+expect 403
+post /api/users {"username":"terzo","email":"tre@example.com","password":"debole"}
+expect 400
+
+login
+get /api/login
+expect 200
+expect-body admin
+
+# --- CRUD vino
+post /api/wines {"name":"Barolo del driver","category":"rossi","regione":"Piemonte","annate":[{"anno":"2019","prezzo":42}]}
+expect 201
+save wineId id
+get /api/wines/$wineId
+expect 200
+expect-body Barolo del driver
+put /api/wines/$wineId {"prezzo":45}
+expect 200
+
+# categoria fuori enum -> messaggio esplicito, non un errore di Mongoose
+post /api/wines {"name":"Fuori enum","category":"frizzanti"}
+expect 400
+expect-body category deve essere una di
+
+# annata senza anno -> messaggio in italiano per il negoziante
+post /api/wines {"name":"Senza annata","category":"rossi","annate":[{"prezzo":10}]}
+expect 400
+expect-body Manca l'annata
+
+# champagne e' l'eccezione: nessun anno richiesto
+post /api/wines {"name":"Champagne del driver","category":"champagne","annate":[{"prezzo":80}]}
+expect 201
+save champId id
+
+# id malformato -> CastError tradotto
+get /api/wines/non-un-id
+expect 400
+expect-body Dato non valido
+
+# --- DELETE /:id/image cancella solo la foto, non il prodotto
+del /api/wines/$wineId/image
+expect 200
+get /api/wines/$wineId
+expect 200
+expect-body Barolo del driver
+
+# --- birre e alimentari: stesso contratto
+post /api/beers {"name":"Birra del driver","producer":"ribaldi","formato":33,"prezzo":5}
+expect 201
+save beerId id
+post /api/beers {"name":"Birrificio inesistente","producer":"acme"}
+expect 400
+post /api/alimentari {"name":"Formaggio del driver","category":"gastronomia","sottocategoria":"Formaggi inventati","formato":250}
+expect 201
+save foodId id
+
+# sottocategoria e' testo libero per scelta: un gruppo nuovo deve passare
+get /api/alimentari
+expect 200
+expect-body Formaggi inventati
+
+# --- i due canali del token sono entrambi validi da soli
+auth cookie
+put /api/wines/$wineId {"prezzo":46}
+expect 200
+auth bearer
+put /api/wines/$wineId {"prezzo":47}
+expect 200
+auth none
+put /api/wines/$wineId {"prezzo":48}
+expect 401
+auth both
+
+# --- logout revoca il token, non solo il cookie: il vecchio Bearer, ancora
+# valido per firma e scadenza, deve cadere sul confronto di tokenVersion
+save-token vecchio
+logout
+expect 204
+auth bearer
+token $vecchio
+get /api/login
+expect 401
+token none
+auth both
+
+# --- pulizia (rilogin: il token di prima e' stato revocato)
+login
+del /api/wines/$wineId
+expect 204
+del /api/wines/$champId
+expect 204
+del /api/beers/$beerId
+expect 204
+del /api/alimentari/$foodId
+expect 204
+get /api/wines/$wineId
+expect 404
+
+get /api/wines
+expect 200
+count
+
+get /api/rotta-inesistente
+expect 404
+expect-body unknown endpoint

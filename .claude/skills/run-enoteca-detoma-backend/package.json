@@ -1,0 +1,9 @@
+{
+  "name": "run-enoteca-detoma-backend",
+  "private": true,
+  "description": "Harness per avviare e pilotare l'API di Enoteca de Toma su un Mongo usa e getta. Dipendenze tenute qui e non nel package.json del backend, che va su Vercel.",
+  "type": "module",
+  "dependencies": {
+    "mongodb-memory-server": "^10.4.3"
+  }
+}
