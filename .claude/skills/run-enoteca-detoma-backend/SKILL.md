@@ -253,3 +253,8 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   you gave it isn't in the last response body. `show` right before it.
 - **First run appears stuck for ~2 min with no output** — the `mongod` binary is
   downloading. Only once per binary version; the cache is `~/.cache/mongodb-binaries`.
+- **`FAIL avvio -> il server non ha risposto su /health entro 40s` with an empty
+  `server.log`** — seen once, on the first run after the machine rebooted, and not
+  reproducible: the very next run booted in 9 s. Empty log means the child printed nothing
+  at all, so it is a cold-start stall, not a code problem. Re-run it; if it repeats, use
+  `--verbose` to watch the child directly.
