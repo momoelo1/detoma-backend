@@ -1,10 +1,11 @@
-// Migrazione UNA TANTUM: importa i prodotti "Alimentari" (gastronomia +
-// dolceria) fotografati in negozio. Per ogni prodotto carica la foto locale
-// su Cloudinary (stessa cartella usata dal controller: enoteca-detoma/alimentari)
-// e poi salva il documento nel database con l'URL risultante.
+// Migrazione UNA TANTUM (già eseguita il 2026-08-02: 50 prodotti in
+// produzione): importa i prodotti "Alimentari" (gastronomia + dolceria)
+// fotografati in negozio, SENZA immagini.
 //
-// Le immagini sorgente stanno in scripts/import-assets/alimentari/ (stessi
-// nomi file IMG_xxxx.jpg delle foto originali).
+// Questo file resta come traccia di cosa è stato importato e, soprattutto,
+// come mappa foto → prodotto: `imgFile` dice quale scatto corrisponde a
+// quale prodotto mentre si caricano le immagini a mano dal pannello admin.
+// Il campo NON viene letto dal codice e non finisce nel database.
 //
 // NOTE PER CHI LANCIA LO SCRIPT:
 // - formato (peso in grammi) e prezzo NON sono stati compilati: non erano
@@ -13,7 +14,7 @@
 // - Rifiuta l'esecuzione se esistono già alimentari nel database, per
 //   evitare duplicati (stesso pattern degli altri script di import).
 //
-// Uso: node scripts/importAlimentari.js
+// Uso: node scripts/importAlimentari.js [--dry-run]
 require("dotenv").config();
 const mongoose = require("mongoose");
 const Alimentare = require("../models/Alimentare");
@@ -211,25 +212,9 @@ const ALIMENTARI = [
     imgFile: "IMG_5681.jpg",
   },
 
-  // -- Confezioni Regalo (dolceria) --
-  {
-    name: "Sette Giorni di Dolcezza",
-    category: "dolceria",
-    sottocategoria: "Confezioni Regalo",
-    tipo: "Cofanetto regalo",
-    description:
-      "Cofanetto Brezzo con sette mini confetture, una per ogni giorno della settimana: un'idea regalo golosa e curata.",
-    imgFile: "IMG_5679.jpg",
-  },
-  {
-    name: "Le Composte di Frutta Bio",
-    category: "dolceria",
-    sottocategoria: "Confezioni Regalo",
-    tipo: "Cofanetto regalo",
-    description:
-      "Cofanetto Brezzo con sei composte di frutta biologica in formato mini, completo di cucchiaino in legno: perfetto da regalare.",
-    imgFile: "IMG_5680.jpg",
-  },
+  // NOTA: i cofanetti regalo (IMG_5679, IMG_5680) sono stati tolti da qui
+  // il 2026-08-02 — le confezioni regalo avranno la loro sezione, non
+  // stanno sotto Alimentari.
 
   // ---------------------------------------------------------------------
   // GASTRONOMIA
@@ -481,25 +466,8 @@ const ALIMENTARI = [
     imgFile: "IMG_5708.jpg",
   },
 
-  // -- Confezioni Regalo (gastronomia) --
-  {
-    name: "Le Salse per Formaggi",
-    category: "gastronomia",
-    sottocategoria: "Confezioni Regalo",
-    tipo: "Cofanetto regalo",
-    description:
-      "Cofanetto Brezzo con sei salse abbinate ai formaggi (pere e zenzero, cipolle rosse e altre): un'idea regalo per gli amanti dei formaggi.",
-    imgFile: "IMG_5688.jpg",
-  },
-  {
-    name: "Salse per Formaggi (formato mini)",
-    category: "gastronomia",
-    sottocategoria: "Confezioni Regalo",
-    tipo: "Cofanetto regalo",
-    description:
-      "Confezione regalo Brezzo con tre salse in formato mini pensate per accompagnare i formaggi: pratica e curata nei dettagli.",
-    imgFile: "IMG_5698.jpg",
-  },
+  // NOTA: i cofanetti regalo (IMG_5688, IMG_5698) sono stati tolti da qui
+  // il 2026-08-02 — vedi la nota sopra nella sezione dolceria.
 ];
 
 // IMMAGINI ESCLUSE (scelta del negozio, 2026-08-02): i prodotti entrano
