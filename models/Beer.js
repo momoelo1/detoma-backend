@@ -23,9 +23,8 @@ const BeerSchema = new mongoose.Schema(
     // formato bottiglia/lattina in centilitri, es. 33 per "33cl" — numero
     // puro, l'unità è implicita e fissa (niente "33cl"/"0,33l" misti)
     formato: { type: Number },
-    // selezione della casa: vedi models/Wine.js per il senso dei due campi
+    // selezione della casa: vedi models/Wine.js
     consigliato: { type: Boolean, default: false },
-    consiglio: { type: String },
     img: { type: String },
     prezzo: { type: Number },
   },
