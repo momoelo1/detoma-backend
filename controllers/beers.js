@@ -2,14 +2,20 @@ const beerRouter = require("express").Router();
 const Beer = require("../models/Beer");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImage, deleteImage } = require("../utils/cloudinary");
+const { limiteDaQuery } = require("../utils/query");
 
 const BEER_IMG_FOLDER = "enoteca-detoma/beers";
 
 // lettura: pubblica, la userà anche il sito del negozio
 beerRouter.get("/", async (req, res) => {
-  const { producer } = req.query;
-  const filter = producer ? { producer } : {};
-  const beers = await Beer.find(filter).sort({ name: 1 });
+  const { producer, consigliato, limit } = req.query;
+  const filter = {};
+  if (producer) filter.producer = producer;
+  // vedi controllers/wines.js: solo "true" accende il filtro
+  if (consigliato === "true") filter.consigliato = true;
+  const beers = await Beer.find(filter)
+    .sort({ name: 1 })
+    .limit(limiteDaQuery(limit));
   res.json(beers);
 });
 

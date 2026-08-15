@@ -19,6 +19,9 @@ const AlimentareSchema = new mongoose.Schema(
     // e fissa, così non si mescolano "250 g"/"0,25 kg"/"250gr"
     formato: { type: Number },
     description: { type: String },
+    // selezione della casa: vedi models/Wine.js per il senso dei due campi
+    consigliato: { type: Boolean, default: false },
+    consiglio: { type: String },
     img: { type: String },
     // prezzo singolo: il cibo non ha annate come i vini
     prezzo: { type: Number },

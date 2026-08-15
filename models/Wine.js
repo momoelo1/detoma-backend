@@ -29,6 +29,13 @@ const WineSchema = new mongoose.Schema(
     colore: { type: String },
     anno: { type: String },
     description: { type: String },
+    // selezione della casa: il prodotto compare nella tab "Consigliati"
+    // dell'Enoteca e porta un contrassegno sulla sua card
+    consigliato: { type: Boolean, default: false },
+    // il perché del consiglio, con la voce del negozio ("da bere con...",
+    // "l'abbiamo scelto perché..."). Distinto da `description`, che sono
+    // le note di degustazione: qui è un parere, non una scheda tecnica
+    consiglio: { type: String },
     img: { type: String },
     prezzo: { type: Number },
     annate: [AnnataSchema],

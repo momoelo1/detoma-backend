@@ -2,19 +2,22 @@ const alimentareRouter = require("express").Router();
 const Alimentare = require("../models/Alimentare");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImage, deleteImage } = require("../utils/cloudinary");
+const { limiteDaQuery } = require("../utils/query");
 
 const ALIMENTARI_IMG_FOLDER = "enoteca-detoma/alimentari";
 
 // lettura: pubblica, la userà anche il sito del negozio
 alimentareRouter.get("/", async (req, res) => {
-  const { category } = req.query;
-  const filter = category ? { category } : {};
+  const { category, consigliato, limit } = req.query;
+  const filter = {};
+  if (category) filter.category = category;
+  // vedi controllers/wines.js: solo "true" accende il filtro
+  if (consigliato === "true") filter.consigliato = true;
   // ordinati per sottocategoria e poi per nome: la pagina che raggruppa
   // per sottogruppo li riceve già nell'ordine giusto
-  const alimentari = await Alimentare.find(filter).sort({
-    sottocategoria: 1,
-    name: 1,
-  });
+  const alimentari = await Alimentare.find(filter)
+    .sort({ sottocategoria: 1, name: 1 })
+    .limit(limiteDaQuery(limit));
   res.json(alimentari);
 });
 

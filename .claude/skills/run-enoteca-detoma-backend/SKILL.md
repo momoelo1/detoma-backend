@@ -134,6 +134,28 @@ count
 Verified 2026-08-10: 534 wines, 46 alimentari, 37 beers. Note `--read-only` counts a
 blocked write as a failure, so a script that deliberately tries one exits 1.
 
+### Un filtro che il deployato non conosce NON restituisce zero: restituisce tutto
+
+I controller costruiscono il filtro leggendo i parametri che conoscono e **ignorano gli
+altri**. Quindi una query nuova, contro il backend ancora vecchio in produzione, non dà una
+lista vuota — dà il **catalogo intero**, con stato 200 e nessun errore da nessuna parte.
+
+```powershell
+foreach ($p in @('/api/wines?consigliato=true','/api/beers?consigliato=true','/api/alimentari?consigliato=true')) {
+  $r = Invoke-RestMethod "https://detoma-backend.vercel.app$p" -TimeoutSec 45; "$p -> $($r.Count)"
+}
+```
+
+Misurato il 2026-08-14, **mentre il campo `consigliato` esisteva già in locale ma non era
+ancora deployato**: 534 / 37 / 46, cioè tutto. Da cui la regola operativa:
+
+> **Il backend si deploya PRIMA del frontend, o insieme. Mai dopo.**
+
+Un frontend pubblicato da solo avrebbe messo in home dodici vini a caso sotto il titolo
+"I nostri consigli". Questo vale per qualunque filtro futuro, non solo per questo: quando
+aggiungi un parametro di query, provalo contro il deployato prima di dare per scontato che
+una risposta vuota significhi "nessun dato".
+
 ## Rehearsing a script from `scripts/`
 
 The scripts in `scripts/` read `process.env.MONGODB_URI` and connect to **production**.
@@ -172,16 +194,37 @@ http://localhost:3011/api/alimentari` on the held server then returns 46. In Pow
 
 `--hold` also lets the sibling repo run against a backend that isn't production — the only
 safe way to exercise the **admin panel** (login, create, edit, delete). `seed-locale.txt`
-is a stdin script that creates the admin account and a minimal catalogue (3 wines, 1 beer,
-2 alimentari) and is meant to be fed to a `--hold` run:
+is a stdin script that creates the admin account and a minimal catalogue (4 wines, 1 beer,
+2 alimentari) and is meant to be fed to a `--hold` run. Tre di quei prodotti — un vino, una
+birra, un alimentare — sono marcati `consigliato`, e i due rossi sono di **regioni diverse**:
+senza le prime la tab Consigliati e la fascia in home restano vuote, senza le seconde lo
+smoke del frontend si pianta sul passo `click text=Regioni`. Non toglierli.
 
 ```powershell
 Start-Process node -ArgumentList '.claude/skills/run-enoteca-detoma-backend/driver.mjs','--hold' -RedirectStandardOutput "$env:TEMP\hold.log" -RedirectStandardInput '.claude/skills/run-enoteca-detoma-backend/seed-locale.txt' -WindowStyle Hidden
 ```
 
-Then, in `frontend/`, start Vite with `$env:VITE_API_URL = 'http://localhost:3011'` and log
-in as `admin` / `Password1!`. Verified end to end: the panel lists the seeded wine and the
-public page renders it. Details in `frontend/.claude/skills/run-enoteca-detoma-frontend/`.
+Then, in `frontend/`, start Vite pointed at it and log in as `admin` / `Password1!`.
+**Attenzione a come passi la variabile**: impostare `$env:VITE_API_URL` e poi lanciare
+`Start-Process npm.cmd` NON funziona — il figlio non la vede, Vite ricade su
+`localhost:3001` e ogni lista esce vuota. Va impostata dentro il processo figlio:
+
+```powershell
+Start-Process cmd.exe -ArgumentList '/c','set "VITE_API_URL=http://localhost:3011" && npm run dev' `
+  -RedirectStandardOutput "$env:TEMP\vite.log" -WindowStyle Hidden
+```
+
+Poi **verifica a quale API è legato** invece di darlo per scontato (il modulo servito
+contiene l'URL; vuoto = sta usando il fallback):
+
+```powershell
+$c = (Invoke-WebRequest "http://localhost:5173/src/services/wines.js" -UseBasicParsing).Content
+(([regex]::Matches($c,'https?://[^"'' ]+')) | ForEach-Object { $_.Value } | Select-Object -Unique)
+```
+
+Verificato end to end il 2026-08-14: con questo seed lo smoke completo del frontend passa
+(`ERRORS none`, exit 0) — prima girava solo contro il catalogo di produzione. Dettagli in
+`frontend/.claude/skills/run-enoteca-detoma-frontend/`.
 
 CORS already allows this: `app.js` lets through any `localhost` origin, plus LAN
 `192.168/10./172.16-31` origins on port 5173 for testing from a phone.
@@ -237,6 +280,24 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   not.
 - **Ephemeral means ephemeral.** Every run starts with an empty DB, so a script must
   `seed-admin` before `login`, and `GET /api/wines` legitimately returns 0 items.
+- **I `--hold` si accumulano fra una sessione e l'altra.** Avviati con `Start-Process`,
+  sopravvivono alla chiamata che li ha creati; e uccidere *chi ascolta la porta 3011* non
+  tocca né il driver né il suo `mongo_killer.js`, che restano su con il mongod effimero. Il
+  2026-08-14 ne ho trovati vivi due di due giorni prima. Cercali per riga di comando, non
+  per nome (sono tutti `node`):
+
+  ```powershell
+  Get-Process node | Select-Object Id, StartTime, @{n='cmd';e={
+    (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine }} | Format-Table -Wrap -AutoSize
+  ```
+
+  Nello stesso elenco c'è anche il `nodemon.js server.js` dello sviluppatore sulla 3001,
+  **che parla con Atlas di produzione**: uccidere alla cieca gli spegne il backend sotto le
+  mani. Vai per PID, e solo su quelli che hai avviato tu.
+- **Prima di dare la colpa al frontend, chiedi al database.** Una tab vuota nel sito quasi
+  sempre significa che i dati non ci sono, non che il codice è rotto: `seed-locale.txt` marca
+  tre prodotti come `consigliato` proprio perché senza quelli la tab Consigliati e la fascia
+  in home restano — correttamente — invisibili.
 
 ## Troubleshooting
 

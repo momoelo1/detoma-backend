@@ -1,25 +1,43 @@
 # Catalogo minimo per far girare il frontend contro questo backend usa e getta.
 # Pensato per essere passato allo stdin del driver insieme a --hold:
 # admin = admin / Password1!
+#
+# Tre prodotti su sei sono "consigliati", uno per tipo (vino, birra,
+# alimentare): è il minimo che serve per vedere davvero la tab Consigliati
+# dell'Enoteca e la fascia in home, che raggruppano per categoria e quindi
+# con un solo tipo non proverebbero niente.
 
 seed-admin
 login
 
-post /api/wines {"name":"Barolo di prova","category":"rossi","regione":"Piemonte","paese":"Italia","annate":[{"anno":"2019","prezzo":42}]}
+post /api/wines {"name":"Barolo di prova","category":"rossi","regione":"Piemonte","paese":"Italia","annate":[{"anno":"2019","prezzo":42}],"consigliato":true,"consiglio":"Lo teniamo da parte per il brasato della domenica."}
+expect 201
+# Secondo rosso di un'ALTRA regione: la barra "Regioni" compare solo con almeno
+# due valori distinti (`hasRegionBar` in Enoteca.jsx), e senza di lui lo smoke
+# del frontend si pianta sul passo `click text=Regioni`.
+post /api/wines {"name":"Chianti di prova","category":"rossi","regione":"Toscana","paese":"Italia","annate":[{"anno":"2021","prezzo":16}]}
 expect 201
 post /api/wines {"name":"Gavi di prova","category":"bianchi","regione":"Piemonte","paese":"Italia","annate":[{"anno":"2022","prezzo":14}]}
 expect 201
 post /api/wines {"name":"Cerasuolo di prova","category":"rosati","regione":"Abruzzo","paese":"Italia","annate":[{"anno":"2023","prezzo":11}]}
 expect 201
 
-post /api/beers {"name":"Birra di prova","producer":"ribaldi","stile":"birra rossa","formato":33,"prezzo":5}
+post /api/beers {"name":"Birra di prova","producer":"ribaldi","stile":"birra rossa","formato":33,"prezzo":5,"consigliato":true,"consiglio":"La diamo a chi dice che l'artigianale e troppo amara."}
 expect 201
 
 post /api/alimentari {"name":"Formaggio di prova","category":"gastronomia","sottocategoria":"Formaggi","tipo":"Formaggio","formato":250,"prezzo":9}
 expect 201
-post /api/alimentari {"name":"Biscotti di prova","category":"dolceria","sottocategoria":"Biscotti","tipo":"Biscotto","formato":300,"prezzo":6}
+post /api/alimentari {"name":"Biscotti di prova","category":"dolceria","sottocategoria":"Biscotti","tipo":"Biscotto","formato":300,"prezzo":6,"consigliato":true,"consiglio":"Del forno che ci rifornisce da sempre."}
 expect 201
 
 # il logout qui revocherebbe il token, ma il frontend fa il suo login: va bene
 get /api/wines
+count
+# tre consigliati, uno per tipo: se qui non escono 1/1/1 la tab Consigliati
+# e la fascia in home resteranno vuote e sembrerà un bug del frontend
+get /api/wines?consigliato=true
+count
+get /api/beers?consigliato=true
+count
+get /api/alimentari?consigliato=true
 count

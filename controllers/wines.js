@@ -2,14 +2,23 @@ const wineRouter = require("express").Router();
 const Wine = require("../models/Wine");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImage, deleteImage } = require("../utils/cloudinary");
+const { limiteDaQuery } = require("../utils/query");
 
 const WINE_IMG_FOLDER = "enoteca-detoma/wines";
 
 // lettura: pubblica, la userà anche il sito del negozio
 wineRouter.get("/", async (req, res) => {
-  const { category } = req.query;
-  const filter = category ? { category } : {};
-  const wines = await Wine.find(filter).sort({ name: 1 });
+  const { category, consigliato, limit } = req.query;
+  const filter = {};
+  if (category) filter.category = category;
+  // solo "true" accende il filtro: l'elenco dei NON consigliati non serve
+  // a nessuno, e così un valore strano nella query non nasconde il catalogo
+  if (consigliato === "true") filter.consigliato = true;
+  // .limit(0) in Mongoose vuol dire "tutti", quindi il caso senza limite non
+  // ha bisogno di un ramo a parte
+  const wines = await Wine.find(filter)
+    .sort({ name: 1 })
+    .limit(limiteDaQuery(limit));
   res.json(wines);
 });
 
