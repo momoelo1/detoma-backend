@@ -69,10 +69,24 @@ Two deliberate departures in `Alimentare`, both requested by the client: `sottoc
 accepts new ones, and the Alimentari page derives its groups from whatever values exist),
 and `formato` is a **Number in grams**, not the `cl` used for beer.
 
-`Wine.annate` is a subdocument array of `{ anno, prezzo }`. `anno` is required for every
-category **except champagne**, via a `required` function reading `this.parent().category` —
-if another category stops asking for the year in the admin form, it must be added there too
-or saving will fail.
+`Wine.annate` is a subdocument array of `{ anno, formati }`, where each **formato** is
+`{ ml, prezzo }` — the bottle that vintage is sold in, with its own price. The same year can
+have several (750 and magnum at different prices), which is why the price hangs off the
+formato and not off the annata.
+
+Both inner fields are optional and their absence is meaningful: **empty `ml` means the
+standard bottle** (nobody types 750 onto five hundred wines), and **no `prezzo` means "we
+stock it, ask us"** — the real case behind the ~25 wines whose names still read
+"(disponibile anche Magnum)". `anno` is still required for every category **except
+champagne**, via a `required` function reading `this.parent().category` — if another
+category stops asking for the year in the admin form, it must be added there too or saving
+will fail.
+
+`annate[].prezzo` is **legacy and still in the schema on purpose.** Mongoose only returns
+paths it knows, so deleting it would blank the price of every un-migrated wine — i.e. the
+whole catalogue. Readers try `formati` first and fall back to it (`utils/prezzo.js` →
+`formatiAnnata` on the frontend). `scripts/migraPrezziInFormati.js` converts the old shape;
+only once it has run can the field go.
 
 ### Images
 
