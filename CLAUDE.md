@@ -74,13 +74,18 @@ and `formato` is a **Number in grams**, not the `cl` used for beer.
 have several (750 and magnum at different prices), which is why the price hangs off the
 formato and not off the annata.
 
-Both inner fields are optional and their absence is meaningful: **empty `ml` means the
-standard bottle** (nobody types 750 onto five hundred wines), and **no `prezzo` means "we
-stock it, ask us"** — the real case behind the ~25 wines whose names still read
-"(disponibile anche Magnum)". `anno` is still required for every category **except
-champagne**, via a `required` function reading `this.parent().category` — if another
-category stops asking for the year in the admin form, it must be added there too or saving
-will fail.
+`ml` is optional and its absence is meaningful: **empty `ml` means the standard bottle**
+(nobody types 750 onto five hundred wines), and a checkbox on each row of the admin form
+turns it on, offering the known sizes as a `<select>` that starts on Bottiglia (750).
+`prezzo` is optional too but **defaults to `0`** rather than staying absent — a price left
+blank in the form means "we stock it, the price isn't in yet", and `0` is what the site
+already reads as no price (`utils/prezzo.js` tests `prezzo > 0`). There is no "price on
+request" flag: zero *is* that state. A row the admin never touched — no format, no price —
+is dropped by the form, so a wine with no price at all stores the annata without `formati`.
+
+`anno` is still required for every category **except champagne**, via a `required` function
+reading `this.parent().category` — if another category stops asking for the year in the
+admin form, it must be added there too or saving will fail.
 
 `annate[].prezzo` is **legacy and still in the schema on purpose.** Mongoose only returns
 paths it knows, so deleting it would blank the price of every un-migrated wine — i.e. the

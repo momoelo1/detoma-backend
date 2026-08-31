@@ -61,8 +61,8 @@ const FRIENDLY_FIELD_MESSAGES = {
   name: "Il nome del vino è obbligatorio.",
   category: "La categoria del vino non è valida.",
   "annate.anno": "Manca l'annata su una delle righe di prezzo.",
-  // niente voce per "annate.prezzo": il prezzo non è più obbligatorio,
-  // la spunta nel form lo slega dall'annata (vedi models/Wine.js)
+  // niente voce per "annate.prezzo": il prezzo non è obbligatorio da
+  // nessuna parte — sul formato manca e vale zero (vedi models/Wine.js)
   username: "Lo username non è valido.",
   email: "L'email non è valida.",
   password: "La password non rispetta i requisiti richiesti.",

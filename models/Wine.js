@@ -6,16 +6,19 @@ const CATEGORIES = ["rossi", "bianchi", "rosati", "spumanti", "champagne", "liqu
 // un formato dell'annata: la bottiglia in cui quel vino di quell'anno si
 // vende, con il suo prezzo. Lo stesso anno può averne più di uno (750 e
 // magnum), ed è per questo che il prezzo sta qui e non sull'annata.
-//
-// `ml` vuoto = bottiglia standard. Il negozio annota solo i formati fuori
-// misura, esattamente come fa già a mano nei nomi ("(375 ml)", "Magnum"):
-// nessuno deve scrivere 750 su cinquecento vini.
 const FormatoSchema = new mongoose.Schema(
   {
+    // FACOLTATIVO, ed è la spunta nel form ad accenderlo: `ml` vuoto vale
+    // bottiglia standard. Il negozio annota solo i formati fuori misura,
+    // esattamente come fa già a mano nei nomi ("(375 ml)", "Magnum"):
+    // nessuno deve scrivere 750 su cinquecento vini.
     ml: { type: Number },
-    // facoltativo come lo era sull'annata: la spunta nel form lo slega.
-    // Un magnum senza prezzo è il caso vero di "disponibile anche Magnum"
-    prezzo: { type: Number },
+    // Facoltativo anche lui, ma con un ripiego invece del vuoto: una riga
+    // salvata senza prezzo vale ZERO, che sul sito è già "prezzo assente"
+    // (utils/prezzo.js legge `prezzo > 0`, e le 56 schede mai prezzate in
+    // produzione sono esattamente così). Niente `required`: il negozio
+    // salva il formato e ci mette il prezzo quando ce l'ha.
+    prezzo: { type: Number, default: 0 },
   },
   { _id: false },
 );
