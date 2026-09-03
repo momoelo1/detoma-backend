@@ -55,7 +55,9 @@ down, and exits non-zero if any line failed:
 Get-Content .claude/skills/run-enoteca-detoma-backend/smoke.txt | node .claude/skills/run-enoteca-detoma-backend/driver.mjs
 ```
 
-Verified output ends with `ESITO: tutto ok`, exit code 0, in ~10 s warm. `smoke.txt`
+Verified output ends with `ESITO: tutto ok`, exit code 0. Durata **28–47 s** (due corse
+consecutive il 2026-08-25, stesso albero: 27,6 s e 46,6 s). Qui c'era scritto "~10 s
+warm": ottimistico, la varianza è quasi tutta l'avvio del mongod effimero. `smoke.txt`
 covers: public reads, 401 on an unauthenticated write, the single-account rule (403 on a
 second user), login over both token channels, wine/beer/alimentare CRUD, the category
 enums, the Italian validation messages, the champagne-has-no-year exception,
@@ -131,30 +133,76 @@ count
 '@ | node .claude/skills/run-enoteca-detoma-backend/driver.mjs --base https://detoma-backend.vercel.app --read-only
 ```
 
-Verified 2026-08-10: 534 wines, 46 alimentari, 37 beers. Note `--read-only` counts a
-blocked write as a failure, so a script that deliberately tries one exits 1.
+Riverificato il **2026-08-25**: 534 vini, 37 birre, 46 alimentari — invariati dal
+2026-08-10. Consigliati veri in produzione: **10 vini, 0 birre, 11 alimentari** (li marca
+il negoziante dal pannello, quindi questo numero cresce). `--read-only` conta una scrittura
+bloccata come fallimento, quindi uno script che ne tenta una apposta esce 1.
 
-### Un filtro che il deployato non conosce NON restituisce zero: restituisce tutto
+### Capire QUALE codice sta girando in produzione, senza scrivere niente
 
-I controller costruiscono il filtro leggendo i parametri che conoscono e **ignorano gli
-altri**. Quindi una query nuova, contro il backend ancora vecchio in produzione, non dà una
-lista vuota — dà il **catalogo intero**, con stato 200 e nessun errore da nessuna parte.
+Dopo un push, "il deploy è arrivato?" si risponde di solito provando una
+scrittura — che in produzione vuol dire creare roba nel catalogo vero del
+negozio. Non serve: **Mongoose serializza i path che conosce, quindi un campo
+nuovo appare nelle risposte GET anche sui documenti che non lo hanno.**
 
-```powershell
-foreach ($p in @('/api/wines?consigliato=true','/api/beers?consigliato=true','/api/alimentari?consigliato=true')) {
-  $r = Invoke-RestMethod "https://detoma-backend.vercel.app$p" -TimeoutSec 45; "$p -> $($r.Count)"
-}
+Un path array nuovo esce come `[]`. Aggiunto `formati` ad `AnnataSchema`, un
+vino mai toccato passa da
+
+```json
+{"anno":"2021","prezzo":95}                    // codice vecchio
+{"anno":"2021","prezzo":95,"formati":[]}       // codice nuovo in linea
 ```
 
-Misurato il 2026-08-14, **mentre il campo `consigliato` esisteva già in locale ma non era
-ancora deployato**: 534 / 37 / 46, cioè tutto. Da cui la regola operativa:
+Quindi una GET su un vino qualunque dice quale versione risponde. Usato il
+2026-08-28 per confermare il deploy di `c1dc2ee`:
+
+```js
+const a = (await get('/api/wines?category=rossi&limit=1'))[0].annate[0];
+const nuovo = Object.prototype.hasOwnProperty.call(a, 'formati');
+```
+
+Vale per **campi array**. Uno scalare nuovo e mai valorizzato resta assente in
+entrambe le versioni e non distingue niente; per quelli serve un marcatore
+diverso (o pazienza). Ricontrollato il 2026-09-01 con `prezzo: { default: 0 }`
+sul formato: il ripiego si vede solo su un formato **senza** prezzo, e in
+produzione non ce n'era nemmeno uno — quindi del deploy si è potuto dire
+soltanto "pushato e l'API risponde", non "codice nuovo confermato in linea".
+Dirlo così, invece di dare per scontato il resto. Nella stessa GET si legge anche se i dati sono ancora
+integri — sopra, `prezzo: 95` accanto a `formati: []` diceva in un colpo solo
+"codice nuovo attivo" **e** "nessun prezzo perso".
+
+La CLI di Vercel qui **non è autenticata** (`vercel ls` → `The request is
+missing an authentication token`), quindi questa è la via pratica: non serve un
+login interattivo per sapere cosa è in linea.
+
+### Parametri di query che il deployato conosce oggi
+
+| parametro | dove | effetto |
+|---|---|---|
+| `?category=` / `?producer=` | wines / beers | filtro esatto |
+| `?consigliato=true` | tutt'e tre | solo la selezione della casa. **Solo** `true` accende il filtro |
+| `?limit=N` | tutt'e tre | massimo N documenti, tetto 200 (`utils/query.js`) |
+
+`?limit=` è live dal 2026-08-15 — verificato oggi: `?limit=5` → 5 elementi. Un limite non
+numerico, `0` o negativo vale **"nessun limite"**, di proposito: una query storta non deve
+mai svuotare un elenco.
+
+### Un filtro che il deployato NON conosce non restituisce zero: restituisce tutto
+
+I controller costruiscono il filtro leggendo i parametri che conoscono e **ignorano gli
+altri**. Una query nuova, contro un backend più vecchio, non dà una lista vuota — dà il
+**catalogo intero**, con stato 200 e nessun errore da nessuna parte.
+
+Misurato il 2026-08-14, quando `consigliato` esisteva in locale ma non era ancora
+deployato: `?consigliato=true` tornava 534 / 37 / 46, cioè tutto. **Oggi quel campo è
+deployato** e infatti torna 10 / 0 / 11 — l'esempio è storia, la regola no:
 
 > **Il backend si deploya PRIMA del frontend, o insieme. Mai dopo.**
 
 Un frontend pubblicato da solo avrebbe messo in home dodici vini a caso sotto il titolo
-"I nostri consigli". Questo vale per qualunque filtro futuro, non solo per questo: quando
-aggiungi un parametro di query, provalo contro il deployato prima di dare per scontato che
-una risposta vuota significhi "nessun dato".
+"I nostri consigli". Vale per qualunque parametro futuro: quando ne aggiungi uno, provalo
+contro il deployato prima di dare per scontato che una risposta piena significhi "il filtro
+funziona", o che una vuota significhi "non ci sono dati".
 
 ## Rehearsing a script from `scripts/`
 
@@ -190,6 +238,37 @@ Verified: `Importati 46 alimentari (senza immagini).`, and `GET
 http://localhost:3011/api/alimentari` on the held server then returns 46. In PowerShell
 `$env:X=''` removes the variable, so the shell is clean afterwards.
 
+## Aggiustare i DATI in produzione (non il codice)
+
+Quando il difetto è nei dati e non nel programma — valori sporchi, doppioni,
+un campo da normalizzare — la via è uno script usa e getta in `scripts/`, non
+una modifica al backend. Non serve nessun redeploy: i dati sono live subito.
+
+Ricetta, verificata il 2026-09-01 sulle regioni con lo spazio in coda
+("Lombardia " accanto a "Lombardia", 57 vini su 7 valori gemelli):
+
+1. Lo script sta in **`scripts/`** e si lancia con cwd = `backend/`. Da altrove
+   `dotenv` non trova `.env` e `require('../models/Wine')` non risolve.
+2. Riusare il **modello del repo**, non una query a mano: schema e `toJSON`
+   restano quelli dell'app.
+3. **`--dry-run` obbligatorio, e prima.** Stampa cosa toccherebbe, raggruppato
+   per valore e con qualche nome di esempio: è lì che si vede se il filtro
+   pesca quello che credi. Solo dopo la corsa vera.
+4. Stampare anche **su quale database** si sta per scrivere, con la password
+   mascherata: `uri.replace(/\/\/.*@/, "//…@").split("?")[0]`.
+5. Per gli spazi e le varianti: `find()` tutto e **filtrare in JS** su `.trim()`,
+   poi `updateMany({_id: {$in: ids}}, {$set: …})` per gruppo. Una regex Mongo
+   sugli spazi finali è fragile, e cinquecento documenti si leggono in un attimo.
+6. Verificare **dall'API pubblica**, non dal database: è quello che riceve il
+   sito. Il conteggio dei valori distinti prima/dopo è la prova più corta
+   (24 → 17, zero sporchi).
+7. **Cancellare lo script** quando ha finito: `scripts/` tiene solo roba viva,
+   le migrazioni spese si eliminano (vedi CLAUDE.md).
+
+Un dato sporco quasi sempre ha una **sorgente** ancora aperta: lì era il campo
+libero `regione` del pannello, che salvava senza `trim()`. Ripulire le righe
+senza chiudere il rubinetto vuol dire rifarlo fra un mese.
+
 ## Serving the frontend from the disposable DB
 
 `--hold` also lets the sibling repo run against a backend that isn't production — the only
@@ -206,21 +285,29 @@ Start-Process node -ArgumentList '.claude/skills/run-enoteca-detoma-backend/driv
 
 Then, in `frontend/`, start Vite pointed at it and log in as `admin` / `Password1!`.
 **Attenzione a come passi la variabile**: impostare `$env:VITE_API_URL` e poi lanciare
-`Start-Process npm.cmd` NON funziona — il figlio non la vede, Vite ricade su
-`localhost:3001` e ogni lista esce vuota. Va impostata dentro il processo figlio:
+`Start-Process npm.cmd` NON funziona — il figlio non la vede. E da quando il fallback del
+frontend è la **produzione** (2026-08-15) il sintomo è cambiato in peggio: non vedi più
+liste vuote che gridano "manca la variabile", vedi il **catalogo vero del negozio**, e
+credi di stare sul backend usa e getta mentre il pannello admin sta scrivendo su Atlas.
+Va impostata dentro il processo figlio:
 
 ```powershell
 Start-Process cmd.exe -ArgumentList '/c','set "VITE_API_URL=http://localhost:3011" && npm run dev' `
   -RedirectStandardOutput "$env:TEMP\vite.log" -WindowStyle Hidden
 ```
 
-Poi **verifica a quale API è legato** invece di darlo per scontato (il modulo servito
-contiene l'URL; vuoto = sta usando il fallback):
+Poi **verifica a quale API è legato** invece di darlo per scontato — il modulo servito
+contiene l'URL:
 
 ```powershell
 $c = (Invoke-WebRequest "http://localhost:5173/src/services/wines.js" -UseBasicParsing).Content
 (([regex]::Matches($c,'https?://[^"'' ]+')) | ForEach-Object { $_.Value } | Select-Object -Unique)
 ```
+
+Devi **leggerci `http://localhost:3011`**. La stringa di fallback
+(`detoma-backend.vercel.app`) sta nel sorgente e compare sempre: la sua presenza non
+dimostra niente, la presenza di `localhost:3011` sì. Se manca, la variabile non è arrivata
+e sei sulla produzione.
 
 Verificato end to end il 2026-08-14: con questo seed lo smoke completo del frontend passa
 (`ERRORS none`, exit 0) — prima girava solo contro il catalogo di produzione. Dettagli in
@@ -280,6 +367,12 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   not.
 - **Ephemeral means ephemeral.** Every run starts with an empty DB, so a script must
   `seed-admin` before `login`, and `GET /api/wines` legitimately returns 0 items.
+- **Un campo che lo schema non dichiara viene buttato in silenzio, con 201/200.** Mongoose
+  gira in strict mode: puoi mandare `{"consiglio":"..."}` in POST o PUT, ricevere `201` e
+  rileggere il documento **senza quel campo**. Verificato il 2026-08-15, quando `consiglio`
+  è stato tolto dai tre modelli (la selezione della casa è solo il booleano `consigliato`).
+  Quindi un `expect 201` non prova che il campo sia stato salvato: rileggi con `get` +
+  `show`, o `expect-body`.
 - **I `--hold` si accumulano fra una sessione e l'altra.** Avviati con `Start-Process`,
   sopravvivono alla chiamata che li ha creati; e uccidere *chi ascolta la porta 3011* non
   tocca né il driver né il suo `mongo_killer.js`, che restano su con il mongod effimero. Il
@@ -301,9 +394,23 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
 
 ## Troubleshooting
 
-- **`FAIL avvio -> server.js e' morto con exit 1`** with `EADDRINUSE` in the dump — port
-  3011 is taken by a previous `--hold` run. Kill it, or pass `--port 3012`. The driver
-  stops the ephemeral mongod on this path, so no orphan is left behind.
+- **Porta 3011 già occupata da un `--hold`: due esiti, e il secondo è silenzioso.**
+  1. `FAIL avvio -> server.js e' morto con exit 1` con `EADDRINUSE` nel dump — il caso
+     pulito. Il driver ferma il mongod effimero, nessun orfano.
+  2. **Il peggiore, perché sembra un bug dell'app:** il driver prosegue e le sue richieste
+     finiscono sul server **già in ascolto**, cioè su un database che non è vuoto. Il
+     sintomo è `FAIL seed-admin -> 403 an account already exists` a inizio script.
+     Successo il 2026-08-15 lanciando lo smoke con un `--hold` vivo.
+
+  Regola: **prima di ogni corsa guarda chi ascolta la 3011.** Se c'è un `--hold` tuo,
+  ammazzalo o passa `--port 3012`; se lo script deve parlare proprio con lui, allora usa
+  `--base http://localhost:3011` **esplicitamente** (e allora `seed-admin` va tolto, perché
+  l'account c'è già).
+
+  ```powershell
+  Get-NetTCPConnection -LocalPort 3011 -State Listen -ErrorAction SilentlyContinue |
+    ForEach-Object { "3011 occupata dal PID $($_.OwningProcess)" }
+  ```
 - **The driver seems to hang forever after `OK server su …`** — it is waiting on stdin.
   Pipe a file or a here-string into it; with `Start-Process`, redirect stdin from an empty
   file.
@@ -319,3 +426,20 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   reproducible: the very next run booted in 9 s. Empty log means the child printed nothing
   at all, so it is a cold-start stall, not a code problem. Re-run it; if it repeats, use
   `--verbose` to watch the child directly.
+- **`FAIL avvio -> Instance failed to start within 10000ms` +
+  `Starting the MongoMemoryServer Instance failed`** — è il mongod effimero che non parte
+  in tempo, **prima** che si arrivi al server. Visto due volte il 2026-08-25, e la seconda
+  con la **3011 libera e zero processi `mongod` orfani** (controllati): quindi non è una
+  collisione di porta e non è un orfano, è uno stallo di avvio su macchina carica — la
+  prima volta è successo subito dopo un `npm run build` da due minuti. **Rilancia e basta**:
+  la corsa immediatamente successiva è passata, `ESITO: tutto ok`, exit 0. Ricapitato il
+  2026-09-03 in un'altra veste — `FAIL avvio -> il server non ha risposto su /health entro
+  40s`, con la 3011 libera e nessun `mongod` orfano — e anche lì la corsa dopo è partita
+  liscia: **tre volte su tre la cura è stata rilanciare, non indagare.** Se insiste,
+  controlla comunque i due sospetti:
+  ```powershell
+  Get-NetTCPConnection -LocalPort 3011 -State Listen -ErrorAction SilentlyContinue
+  Get-Process mongod -ErrorAction SilentlyContinue | Select-Object Id, StartTime
+  ```
+  (Nota: ammazzare i `node` del driver **non** lascia orfani `mongod` — verificato, il
+  conteggio dopo la pulizia era 0. Il `mongo_killer.js` fa il suo lavoro.)
