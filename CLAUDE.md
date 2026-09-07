@@ -101,6 +101,25 @@ which uploads and stores the resulting URL. This is why `express.json()` carries
 limit app-wide — a known bandwidth trade-off, since bodies are parsed before auth can
 return 401.
 
+**Wine photos are cut out server-side at upload** (`uploadImage(…, { scontorna: true })`,
+wines controller only). `utils/scontorno.js` uploads the raw photo, hands its URL to an
+engine, hardens the returned mask, encodes the result as **webp** with `sharp` (no PNG at
+any step — the shop's own format is webp) and swaps it in for the raw asset. A photo that
+already arrives cut out (transparent corners, >30% transparent) is left alone, so the
+engine is never billed for the shop's hand-made cut-outs. If the engine fails, the raw
+photo is kept and a line is logged — a save must never fail because of the cut-out.
+
+The engine is chosen by env: `PIXELCUT_API_KEY` set → Pixelcut's API (5 credits/photo;
+**never call it from the browser** — their docs forbid it and the key would ship in the
+bundle); unset → Cloudinary's `e_background_removal`, included in the plan. Cloudinary's
+mask is soft (a wide alpha 201–254 band that reads as a pale halo on cards); the
+hardening step in `scontorno.js` is what makes it usable, and its thresholds were
+measured, not guessed — read the header comment before changing them.
+
+`scripts/scontornaFotoVini.js --dry-run` applies the same treatment to photos uploaded
+before this existed. `sharp` is a native dependency: it ships a prebuilt binary per
+platform, which is why `npm install` on Vercel works without a build step.
+
 ### Auth is single-account
 
 There is exactly one user; being authenticated *is* being the owner. There are no roles or

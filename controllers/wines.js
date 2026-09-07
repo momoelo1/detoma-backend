@@ -5,6 +5,8 @@ const { uploadImage, deleteImage } = require("../utils/cloudinary");
 const { limiteDaQuery } = require("../utils/query");
 
 const WINE_IMG_FOLDER = "enoteca-detoma/wines";
+// le foto delle bottiglie vengono scontornate al caricamento (utils/scontorno.js)
+const WINE_IMG_OPZIONI = { scontorna: true };
 
 // lettura: pubblica, la userà anche il sito del negozio
 wineRouter.get("/", async (req, res) => {
@@ -38,7 +40,7 @@ wineRouter.post("/", tokenExtractor, async (req, res) => {
     return res.status(400).json({ error: `category deve essere una di: ${Wine.CATEGORIES.join(", ")}` });
   }
 
-  const wine = new Wine({ ...req.body, img: await uploadImage(req.body.img, WINE_IMG_FOLDER) });
+  const wine = new Wine({ ...req.body, img: await uploadImage(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI) });
   const savedWine = await wine.save();
   res.status(201).json(savedWine);
 });
@@ -52,7 +54,7 @@ wineRouter.put("/:id", tokenExtractor, async (req, res) => {
   if (!wine) return res.status(404).json({ error: "vino non trovato" });
 
   wine.set(req.body);
-  if ("img" in req.body) wine.img = await uploadImage(req.body.img, WINE_IMG_FOLDER);
+  if ("img" in req.body) wine.img = await uploadImage(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI);
 
   const updatedWine = await wine.save();
   res.json(updatedWine);

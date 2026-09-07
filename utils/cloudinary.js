@@ -1,4 +1,5 @@
 const cloudinary = require("cloudinary").v2;
+const { scontorna } = require("./scontorno");
 
 // Configures itself automatically from process.env.CLOUDINARY_URL
 // (the single connection string shown on the Cloudinary dashboard).
@@ -7,10 +8,35 @@ const cloudinary = require("cloudinary").v2;
 // already-uploaded Cloudinary URL, or empty) is passed through untouched.
 const isBase64Image = (value) => typeof value === "string" && value.startsWith("data:image");
 
-const uploadImage = async (img, folder) => {
+// Con `scontorna: true` (solo i vini, per ora) la foto grezza viene caricata,
+// passata a utils/scontorno.js e sostituita dalla versione pulita: sul
+// documento resta l'URL di quest'ultima, la grezza viene cancellata. Se il
+// motore fallisce — rete, crediti finiti, foto strana — si tiene la grezza e
+// si scrive un rigo di log: il salvataggio del negozio non deve mai saltare
+// per colpa dello scontorno.
+//
+// La foto pulita arriva da utils/scontorno.js già codificata in **webp** —
+// il formato che il negozio usa per le sue foto, con il canale alpha — e
+// viene caricata così com'è.
+const FORMATO_PULITA = "webp";
+
+const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {}) => {
   if (!isBase64Image(img)) return img;
-  const result = await cloudinary.uploader.upload(img, { folder });
-  return result.secure_url;
+  const grezza = await cloudinary.uploader.upload(img, { folder });
+  if (!daScontornare) return grezza.secure_url;
+  try {
+    const webp = await scontorna(grezza.secure_url);
+    if (!webp) return grezza.secure_url; // arrivata già scontornata
+    const pulita = await cloudinary.uploader.upload(
+      `data:image/${FORMATO_PULITA};base64,${webp.toString("base64")}`,
+      { folder }
+    );
+    await cloudinary.uploader.destroy(grezza.public_id);
+    return pulita.secure_url;
+  } catch (err) {
+    console.error(`scontorno fallito (${err.message}): tengo la foto com'è`);
+    return grezza.secure_url;
+  }
 };
 
 // ricava il public_id (es. "enoteca-detoma/wines/abc123") da un secure_url
@@ -30,4 +56,4 @@ const deleteImage = async (img) => {
   await cloudinary.uploader.destroy(publicId);
 };
 
-module.exports = { cloudinary, uploadImage, deleteImage, isBase64Image };
+module.exports = { cloudinary, uploadImage, deleteImage, isBase64Image, FORMATO_PULITA };

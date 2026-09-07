@@ -359,7 +359,14 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   meant to fail.
 - **`utils/config.js` tells you to see `.env.example`. That file does not exist in this
   repo** (the frontend has one; this one doesn't). The full list is: `MONGODB_URI`,
-  `SECRET`, `CLIENT_URL` (required), plus `CLOUDINARY_URL`, `CLIENT_URL_ALT`, `PORT`.
+  `SECRET`, `CLIENT_URL` (required), plus `CLOUDINARY_URL`, `CLIENT_URL_ALT`, `PORT`, and
+  the optional `PIXELCUT_API_KEY` (switches the wine-photo cut-out engine from
+  Cloudinary's AI to Pixelcut — see `utils/scontorno.js`).
+- **`uploadImage(…, { scontorna: true })` calls out to the network twice more** (the
+  engine, then the clean re-upload). Under the driver `CLOUDINARY_URL` is sabotaged, so
+  the raw upload already fails and the cut-out path is never reached — test that path
+  with a throwaway node script against the real account in a `prova-…` folder, as done
+  2026-09-07 (Pio Cesare: 981 ms, 6 KB webp, alpha identical after the round-trip).
 - **Cookie auth works locally only because `NODE_ENV` is not `production`.** The driver
   sets it to `development` so the cookie is `sameSite: strict, secure: false` and plain
   HTTP keeps it. Set `VERCEL=1` or `NODE_ENV=production` and the `secure` cookie is
