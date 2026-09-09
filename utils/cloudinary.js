@@ -39,6 +39,25 @@ const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {
   }
 };
 
+// Più foto per prodotto (i vini, da 2026-09-09: `img` è un array).
+//
+// Accetta indifferentemente un array o la stringa singola di prima — il corpo
+// che arriva dal pannello admin oggi è ancora una stringa sola, e Mongoose la
+// avvolgerebbe comunque — e torna SEMPRE un array. I valori vuoti si buttano
+// qui: erano loro a lasciare in archivio il famigerato [""], cioè "una foto"
+// che foto non è (vedi il commento su `img` in models/Wine.js).
+//
+// In parallelo e non in fila: ogni foto nuova costa un caricamento più, per i
+// vini, una chiamata allo scontorno, cioè secondi. Tre foto in fila sarebbero
+// tre volte l'attesa e su Vercel il salvataggio rischierebbe il timeout della
+// funzione; in parallelo l'attesa resta quella della più lenta. Le foto già
+// caricate (URL Cloudinary) non fanno nessuna chiamata: `uploadImage` le
+// restituisce com'erano, quindi risalvare un vino non ricarica niente.
+const uploadImages = async (img, folder, opzioni) => {
+  const elenco = (Array.isArray(img) ? img : [img]).filter(Boolean);
+  return Promise.all(elenco.map((una) => uploadImage(una, folder, opzioni)));
+};
+
 // ricava il public_id (es. "enoteca-detoma/wines/abc123") da un secure_url
 // tipo https://res.cloudinary.com/<cloud>/image/upload/v169.../<public_id>.<ext>
 const getPublicId = (url) => {
@@ -49,11 +68,23 @@ const getPublicId = (url) => {
 // elimina l'asset da Cloudinary in modo permanente. Se `img` non è un URL
 // Cloudinary reale (vuoto, o mai caricato) non fa nulla — non c'è nulla da
 // cancellare lato storage, solo il riferimento nel documento va svuotato.
+// Accetta anche un array: cancella tutte le foto che contiene.
 const deleteImage = async (img) => {
+  if (Array.isArray(img)) {
+    await Promise.all(img.map(deleteImage));
+    return;
+  }
   if (typeof img !== "string" || !img.includes("res.cloudinary.com")) return;
   const publicId = getPublicId(img);
   if (!publicId) return;
   await cloudinary.uploader.destroy(publicId);
 };
 
-module.exports = { cloudinary, uploadImage, deleteImage, isBase64Image, FORMATO_PULITA };
+module.exports = {
+  cloudinary,
+  uploadImage,
+  uploadImages,
+  deleteImage,
+  isBase64Image,
+  FORMATO_PULITA,
+};

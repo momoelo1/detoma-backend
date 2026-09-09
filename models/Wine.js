@@ -62,7 +62,31 @@ const WineSchema = new mongoose.Schema(
     // c'era anche `consiglio`, il perché scritto a mano dal negozio, ed è
     // stato tolto — una nota per prodotto non l'avrebbe scritta nessuno
     consigliato: { type: Boolean, default: false },
-    img: { type: String },
+    // Le foto della bottiglia, in ordine. La PRIMA è quella che si vede sulla
+    // card in catalogo e nella fascia della home; nella scheda prodotto
+    // scorrono tutte, una ogni sei secondi.
+    //
+    // Era una stringa sola fino al 2026-09-09, e in produzione lo è ancora per
+    // tutti i 383 vini: 71 con un URL, 2 con la stringa vuota, 310 senza il
+    // campo. NON serve nessuno script di migrazione, e non perché "tanto
+    // funziona" ma perché è stato provato (mongodb in memoria, documenti
+    // scritti con il driver grezzo e riletti da questo modello):
+    //
+    //   img: "https://…"  → letto come  ["https://…"]
+    //   img: ""           → letto come  [""]        ← attenzione, vedi sotto
+    //   img: assente      → letto come  []
+    //   img: ["a","b"]    → letto come  ["a","b"]
+    //
+    // e in scrittura `new Wine({ img: "https://…" })` salva ["https://…"].
+    // Mongoose avvolge da sé lo scalare, quindi il vecchio e il nuovo formato
+    // convivono e la migrazione si può fare (o non fare) con comodo.
+    //
+    // IL CASO CHE MORDE è il secondo: una foto cancellata lasciava "" e ora
+    // rileggerla dà un array di UN elemento vuoto, che ha `length` 1 e in JS è
+    // pure truthy. Chi legge deve filtrare i valori vuoti, non contare gli
+    // elementi — lato sito lo fa `elencoFoto` in utils/cloudinary.js, e qui
+    // sotto DELETE /:id/image ora azzera con [] invece che con "".
+    img: [String],
     prezzo: { type: Number },
     annate: [AnnataSchema],
   },

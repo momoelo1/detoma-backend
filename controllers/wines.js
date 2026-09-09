@@ -1,7 +1,7 @@
 const wineRouter = require("express").Router();
 const Wine = require("../models/Wine");
 const { tokenExtractor } = require("../utils/middleware");
-const { uploadImage, deleteImage } = require("../utils/cloudinary");
+const { uploadImages, deleteImage } = require("../utils/cloudinary");
 const { limiteDaQuery } = require("../utils/query");
 
 const WINE_IMG_FOLDER = "enoteca-detoma/wines";
@@ -40,7 +40,7 @@ wineRouter.post("/", tokenExtractor, async (req, res) => {
     return res.status(400).json({ error: `category deve essere una di: ${Wine.CATEGORIES.join(", ")}` });
   }
 
-  const wine = new Wine({ ...req.body, img: await uploadImage(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI) });
+  const wine = new Wine({ ...req.body, img: await uploadImages(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI) });
   const savedWine = await wine.save();
   res.status(201).json(savedWine);
 });
@@ -54,19 +54,49 @@ wineRouter.put("/:id", tokenExtractor, async (req, res) => {
   if (!wine) return res.status(404).json({ error: "vino non trovato" });
 
   wine.set(req.body);
-  if ("img" in req.body) wine.img = await uploadImage(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI);
+  // il corpo può portare un array misto: le foto già in archivio arrivano
+  // come URL Cloudinary e passano intatte, quelle nuove come base64 e vengono
+  // caricate. Una foto TOLTA dall'array resta però su Cloudinary senza che
+  // nessuno la referenzi: succedeva già prima quando se ne sostituiva una, e
+  // a ripulire quelle orfane resta solo DELETE /:id/image qui sotto.
+  if ("img" in req.body) wine.img = await uploadImages(req.body.img, WINE_IMG_FOLDER, WINE_IMG_OPZIONI);
 
   const updatedWine = await wine.save();
   res.json(updatedWine);
 });
 
-// rimuove SOLO la foto (Cloudinary + riferimento nel documento), non il vino
+// Rimuove SOLO le foto (da Cloudinary e dal documento), non il vino.
+//
+// `?indice=N` ne toglie una sola; senza parametro le toglie tutte, che è quel
+// che questa rotta ha sempre fatto quando la foto era una. Serve un indice e
+// non l'URL perché lo stesso file può comparire due volte nell'elenco, e
+// perché è quello che il pannello ha già in mano quando si preme la ✕ su una
+// miniatura.
+//
+// Cancella davvero anche dallo storage, subito, senza aspettare un salvataggio:
+// è il patto che il pannello ha sempre avuto con chi lo usa, e vale ancora —
+// la ✕ su una miniatura già in archivio chiede conferma proprio per questo.
 wineRouter.delete("/:id/image", tokenExtractor, async (req, res) => {
   const wine = await Wine.findById(req.params.id);
   if (!wine) return res.status(404).json({ error: "vino non trovato" });
 
-  await deleteImage(wine.img);
-  wine.img = "";
+  const { indice } = req.query;
+  if (indice === undefined) {
+    await deleteImage(wine.img);
+    // [] e non "": la stringa vuota, riletta da un campo ormai array, tornava
+    // come [""] — un elemento che c'è ma non è una foto (vedi models/Wine.js).
+    // I 2 vini che in produzione hanno ancora "" si ripuliscono da soli la
+    // prossima volta che passano di qui.
+    wine.img = [];
+  } else {
+    const i = Number.parseInt(indice, 10);
+    if (!Number.isInteger(i) || i < 0 || i >= wine.img.length) {
+      return res.status(400).json({ error: "indice della foto non valido" });
+    }
+    await deleteImage(wine.img[i]);
+    wine.img.splice(i, 1);
+  }
+
   const updatedWine = await wine.save();
   res.json(updatedWine);
 });
