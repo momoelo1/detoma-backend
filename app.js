@@ -12,6 +12,7 @@ const userRouter = require("./controllers/users");
 const wineRouter = require("./controllers/wines");
 const beerRouter = require("./controllers/beers");
 const alimentareRouter = require("./controllers/alimentari");
+const distillatoRouter = require("./controllers/distillati");
 const middleware = require("./utils/middleware");
 const logger = require("./utils/logger");
 
@@ -103,6 +104,7 @@ app.use("/api/users", userRouter);
 app.use("/api/wines", wineRouter);
 app.use("/api/beers", beerRouter);
 app.use("/api/alimentari", alimentareRouter);
+app.use("/api/distillati", distillatoRouter);
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);

@@ -40,13 +40,14 @@ the frontend, check that first.
 `server.js` only calls `app.listen`. All wiring lives in `app.js`, which **exports the
 app** so Vercel can use it as a serverless handler — don't move `listen` into `app.js`.
 
-### Four resources, one shape
+### Five resources, one shape
 
 When adding a resource, mirror an existing one rather than inventing a pattern.
 
 | Model | Controller | Route |
 |---|---|---|
 | `Wine` | `controllers/wines.js` | `/api/wines` |
+| `Distillato` | `controllers/distillati.js` | `/api/distillati` |
 | `Beer` | `controllers/beers.js` | `/api/beers` |
 | `Alimentare` | `controllers/alimentari.js` | `/api/alimentari` |
 | `User` | `controllers/users.js`, `login.js` | `/api/users`, `/api/login` |
@@ -87,6 +88,11 @@ is dropped by the form, so a wine with no price at all stores the annata without
 reading `this.parent().category` — if another category stops asking for the year in the
 admin form, it must be added there too or saving will fail.
 
+`Distillato` copies the `Wine` shape (same `annate[].formati`, multi-photo `img`,
+`consigliato`) with two differences: `anno` is **never required** (most spirits carry no
+vintage), and `paese` is free text, since the wine country list has no Scotland or Jamaica.
+It has no legacy `annate[].prezzo`. Stored in the `distillati` collection.
+
 `annate[].prezzo` is **legacy and still in the schema on purpose.** Mongoose only returns
 paths it knows, so deleting it would blank the price of every un-migrated wine — i.e. the
 whole catalogue. Readers try `formati` first and fall back to it (`utils/prezzo.js` →
@@ -101,8 +107,8 @@ which uploads and stores the resulting URL. This is why `express.json()` carries
 limit app-wide — a known bandwidth trade-off, since bodies are parsed before auth can
 return 401.
 
-**Wine photos are cut out server-side at upload** (`uploadImage(…, { scontorna: true })`,
-wines controller only). `utils/scontorno.js` uploads the raw photo, hands its URL to an
+**Wine and distillato photos are cut out server-side at upload** (`uploadImage(…, { scontorna: true })`,
+wines and distillati controllers only). `utils/scontorno.js` uploads the raw photo, hands its URL to an
 engine, hardens the returned mask, encodes the result as **webp** with `sharp` (no PNG at
 any step — the shop's own format is webp) and swaps it in for the raw asset. A photo that
 already arrives cut out (transparent corners, >30% transparent) is left alone, so the
