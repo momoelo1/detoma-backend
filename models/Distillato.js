@@ -40,6 +40,8 @@ const DistillatoSchema = new mongoose.Schema(
     description: { type: String },
     // stella della selezione della casa, come sui vini
     consigliato: { type: Boolean, default: false },
+    // messo in archivio dal pannello: vedi models/Wine.js
+    archiviato: { type: Boolean, default: false },
     // le foto in ordine, la prima è la copertina (vedi models/Wine.js)
     img: [String],
     annate: [AnnataSchema],

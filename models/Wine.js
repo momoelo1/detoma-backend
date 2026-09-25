@@ -62,6 +62,12 @@ const WineSchema = new mongoose.Schema(
     // c'era anche `consiglio`, il perché scritto a mano dal negozio, ed è
     // stato tolto — una nota per prodotto non l'avrebbe scritta nessuno
     consigliato: { type: Boolean, default: false },
+    // messo in archivio dal pannello: il negozio non lo ha in vendita adesso
+    // ma non vuole perderlo. Sparisce da tutti gli elenchi (sito e pannello)
+    // e ricompare nella sezione Archivio, da cui si ripristina. I documenti
+    // che il campo non ce l'hanno contano come NON archiviati — vedi
+    // `filtroArchivio` in utils/query.js, che per questo usa $ne e non false.
+    archiviato: { type: Boolean, default: false },
     // Le foto della bottiglia, in ordine. La PRIMA è quella che si vede sulla
     // card in catalogo e nella fascia della home; nella scheda prodotto
     // scorrono tutte, una ogni sei secondi.

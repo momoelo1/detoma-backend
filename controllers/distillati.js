@@ -2,7 +2,7 @@ const distillatoRouter = require("express").Router();
 const Distillato = require("../models/Distillato");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImages, deleteImage } = require("../utils/cloudinary");
-const { limiteDaQuery } = require("../utils/query");
+const { limiteDaQuery, filtroArchivio } = require("../utils/query");
 
 // Stesse rotte dei vini (controllers/wines.js), scontorno delle foto compreso:
 // anche qui sono bottiglie, e passano dallo stesso trattamento (utils/scontorno.js)
@@ -14,8 +14,8 @@ const categoriaNonValida = () =>
 
 // lettura: pubblica, la userà anche il sito del negozio
 distillatoRouter.get("/", async (req, res) => {
-  const { category, consigliato, limit } = req.query;
-  const filter = {};
+  const { category, consigliato, archiviato, limit } = req.query;
+  const filter = filtroArchivio(archiviato);
   if (category) filter.category = category;
   if (consigliato === "true") filter.consigliato = true;
   const distillati = await Distillato.find(filter)

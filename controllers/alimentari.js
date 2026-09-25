@@ -2,14 +2,14 @@ const alimentareRouter = require("express").Router();
 const Alimentare = require("../models/Alimentare");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImage, deleteImage } = require("../utils/cloudinary");
-const { limiteDaQuery } = require("../utils/query");
+const { limiteDaQuery, filtroArchivio } = require("../utils/query");
 
 const ALIMENTARI_IMG_FOLDER = "enoteca-detoma/alimentari";
 
 // lettura: pubblica, la userà anche il sito del negozio
 alimentareRouter.get("/", async (req, res) => {
-  const { category, consigliato, limit } = req.query;
-  const filter = {};
+  const { category, consigliato, archiviato, limit } = req.query;
+  const filter = filtroArchivio(archiviato);
   if (category) filter.category = category;
   // vedi controllers/wines.js: solo "true" accende il filtro
   if (consigliato === "true") filter.consigliato = true;

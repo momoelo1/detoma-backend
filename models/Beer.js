@@ -25,6 +25,8 @@ const BeerSchema = new mongoose.Schema(
     formato: { type: Number },
     // selezione della casa: vedi models/Wine.js
     consigliato: { type: Boolean, default: false },
+    // messo in archivio dal pannello: vedi models/Wine.js
+    archiviato: { type: Boolean, default: false },
     img: { type: String },
     prezzo: { type: Number },
   },

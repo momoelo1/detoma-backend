@@ -2,7 +2,7 @@ const wineRouter = require("express").Router();
 const Wine = require("../models/Wine");
 const { tokenExtractor } = require("../utils/middleware");
 const { uploadImages, deleteImage } = require("../utils/cloudinary");
-const { limiteDaQuery } = require("../utils/query");
+const { limiteDaQuery, filtroArchivio } = require("../utils/query");
 
 const WINE_IMG_FOLDER = "enoteca-detoma/wines";
 // le foto delle bottiglie vengono scontornate al caricamento (utils/scontorno.js)
@@ -10,8 +10,9 @@ const WINE_IMG_OPZIONI = { scontorna: true };
 
 // lettura: pubblica, la userà anche il sito del negozio
 wineRouter.get("/", async (req, res) => {
-  const { category, consigliato, limit } = req.query;
-  const filter = {};
+  const { category, consigliato, archiviato, limit } = req.query;
+  // gli archiviati restano fuori da ogni elenco tranne quello che li chiede
+  const filter = filtroArchivio(archiviato);
   if (category) filter.category = category;
   // solo "true" accende il filtro: l'elenco dei NON consigliati non serve
   // a nessuno, e così un valore strano nella query non nasconde il catalogo
