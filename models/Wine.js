@@ -26,15 +26,24 @@ const FormatoSchema = new mongoose.Schema(
 const AnnataSchema = new mongoose.Schema(
   {
     // obbligatoria per tutte le categorie tranne champagne, che non
-    // ha un'annata da indicare in etichetta. Se in futuro un'altra
-    // categoria smette di chiedere l'annata nel form admin, va
-    // aggiunta anche qui, altrimenti il salvataggio fallirà di nuovo.
+    // ha un'annata da indicare in etichetta, e tranne le righe segnate
+    // `senzaAnnata`. Se in futuro un'altra categoria smette di chiedere
+    // l'annata nel form admin, va aggiunta anche qui, altrimenti il
+    // salvataggio fallirà di nuovo.
     anno: {
       type: String,
       required: function () {
-        return this.parent().category !== "champagne";
+        return this.parent().category !== "champagne" && !this.senzaAnnata;
       },
     },
+    // la spunta "Senza annata" del pannello: il vino si vende senza anno in
+    // etichetta (i non millesimati) ma ha comunque un prezzo. È una scelta
+    // esplicita e non un anno lasciato in bianco, così un anno DIMENTICATO
+    // continua a far fallire il salvataggio come prima. Il pannello la offre
+    // solo quando il vino ha un'annata sola: mescolare righe con l'anno e una
+    // senza renderebbe quest'ultima irraggiungibile nella scheda del sito,
+    // dove i formati si filtrano per anno scelto.
+    senzaAnnata: { type: Boolean },
     formati: [FormatoSchema],
     // LEGACY. Il prezzo è passato dentro `formati`, ma questo campo NON si
     // può togliere dallo schema finché i dati in produzione non sono

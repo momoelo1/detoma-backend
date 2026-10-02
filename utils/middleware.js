@@ -60,7 +60,8 @@ const unknownEndpoint = (req, res) => {
 const FRIENDLY_FIELD_MESSAGES = {
   name: "Il nome del vino è obbligatorio.",
   category: "La categoria del vino non è valida.",
-  "annate.anno": "Manca l'annata su una delle righe di prezzo.",
+  "annate.anno":
+    "Manca l'annata su una delle righe di prezzo. Se il vino non ha annata, lascia una riga sola e metti la spunta \"Senza annata\".",
   // niente voce per "annate.prezzo": il prezzo non è obbligatorio da
   // nessuna parte — sul formato manca e vale zero (vedi models/Wine.js)
   username: "Lo username non è valido.",

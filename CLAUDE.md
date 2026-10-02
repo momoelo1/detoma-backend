@@ -86,7 +86,12 @@ is dropped by the form, so a wine with no price at all stores the annata without
 
 `anno` is still required for every category **except champagne**, via a `required` function
 reading `this.parent().category` — if another category stops asking for the year in the
-admin form, it must be added there too or saving will fail.
+admin form, it must be added there too or saving will fail. The other exemption is per
+annata: `senzaAnnata: true` (the admin's "Senza annata" checkbox, for non-vintage wines that
+still have a price). It is an explicit flag rather than "a blank year is fine" so a year
+*forgotten* by mistake still fails the save. The form only offers it when the wine has a
+single annata — on the public sheet, formats are filtered by the chosen year, so an undated
+row next to dated ones could never be selected.
 
 `Distillato` copies the `Wine` shape (same `annate[].formati`, multi-photo `img`,
 `consigliato`) with two differences: `anno` is **never required** (most spirits carry no
