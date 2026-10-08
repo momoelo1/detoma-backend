@@ -20,6 +20,12 @@ const BeerSchema = new mongoose.Schema(
     // stile e colore unificati in un unico campo libero (es. "birra rossa")
     stile: { type: String },
     gradazione: { type: String },
+    // la degustazione, testo libero scritto dal negozio: com'è nel bicchiere,
+    // cosa si sente al naso, cosa in bocca. `colore` qui è la descrizione
+    // ("ambrato carico, schiuma fine"), non la famiglia, che sta in `stile`
+    colore: { type: String },
+    profumo: { type: String },
+    gusto: { type: String },
     // formato bottiglia/lattina in centilitri, es. 33 per "33cl" — numero
     // puro, l'unità è implicita e fissa (niente "33cl"/"0,33l" misti)
     formato: { type: Number },

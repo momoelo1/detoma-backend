@@ -8,7 +8,7 @@ const { scontorna } = require("./scontorno");
 // already-uploaded Cloudinary URL, or empty) is passed through untouched.
 const isBase64Image = (value) => typeof value === "string" && value.startsWith("data:image");
 
-// Con `scontorna: true` (solo i vini, per ora) la foto grezza viene caricata,
+// Con `scontorna: true` (vini, distillati e birre) la foto grezza viene caricata,
 // passata a utils/scontorno.js e sostituita dalla versione pulita: sul
 // documento resta l'URL di quest'ultima, la grezza viene cancellata. Se il
 // motore fallisce — rete, crediti finiti, foto strana — si tiene la grezza e

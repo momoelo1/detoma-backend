@@ -5,6 +5,9 @@ const { uploadImage, deleteImage } = require("../utils/cloudinary");
 const { limiteDaQuery, filtroArchivio } = require("../utils/query");
 
 const BEER_IMG_FOLDER = "enoteca-detoma/beers";
+// le foto delle birre vengono scontornate al caricamento come quelle dei vini
+// (utils/scontorno.js): sul sito passano poi dalla stessa cornice 2:3
+const BEER_IMG_OPZIONI = { scontorna: true };
 
 // lettura: pubblica, la userà anche il sito del negozio
 beerRouter.get("/", async (req, res) => {
@@ -35,7 +38,10 @@ beerRouter.post("/", tokenExtractor, async (req, res) => {
     return res.status(400).json({ error: `producer deve essere uno di: ${Beer.PRODUCERS.join(", ")}` });
   }
 
-  const beer = new Beer({ ...req.body, img: await uploadImage(req.body.img, BEER_IMG_FOLDER) });
+  const beer = new Beer({
+    ...req.body,
+    img: await uploadImage(req.body.img, BEER_IMG_FOLDER, BEER_IMG_OPZIONI),
+  });
   const savedBeer = await beer.save();
   res.status(201).json(savedBeer);
 });
@@ -49,7 +55,7 @@ beerRouter.put("/:id", tokenExtractor, async (req, res) => {
   if (!beer) return res.status(404).json({ error: "birra non trovata" });
 
   beer.set(req.body);
-  if ("img" in req.body) beer.img = await uploadImage(req.body.img, BEER_IMG_FOLDER);
+  if ("img" in req.body) beer.img = await uploadImage(req.body.img, BEER_IMG_FOLDER, BEER_IMG_OPZIONI);
 
   const updatedBeer = await beer.save();
   res.json(updatedBeer);
