@@ -380,6 +380,27 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
   è stato tolto dai tre modelli (la selezione della casa è solo il booleano `consigliato`).
   Quindi un `expect 201` non prova che il campo sia stato salvato: rileggi con `get` +
   `show`, o `expect-body`.
+  **Successo davvero in produzione il 2026-10-09**: campi `colore`/`profumo`/`gusto`
+  aggiunti a `models/Beer.js` ma non ancora deployati, il negozio li ha compilati dal
+  pannello, Vercel ha risposto 200 e li ha buttati. Un campo nuovo va **deployato prima**
+  di dire a qualcuno di compilarlo. Per provare lo schema non serve nemmeno il driver:
+  ```bash
+  node -e 'const B=require("./models/Beer");const b=new B({name:"x",producer:"forte",gusto:"y",inventato:1});console.log(b.toJSON());b.set({gusto:""});console.log(JSON.stringify(b.gusto), !b.validateSync())'
+  ```
+  (`inventato` non deve comparire; `""` deve passare, perché il pannello manda i campi di
+  degustazione anche vuoti per poterli cancellare.)
+- **Una foto in produzione è già scontornata?** Prima di rifarla, misurala da `backend/`
+  (che ha `sharp`): angoli ad alpha 0 e una quota di pixel trasparenti.
+  ```bash
+  node -e 'const s=require("sharp");(async()=>{const b=Buffer.from(await(await fetch(process.argv[1])).arrayBuffer());const{data:d,info:i}=await s(b).ensureAlpha().raw().toBuffer({resolveWithObject:true});const a=(x,y)=>d[(y*i.width+x)*4+3];let t=0;for(let k=3;k<d.length;k+=4)if(!d[k])t++;console.log(i.width+"x"+i.height,a(0,0),a(i.width-1,0),a(0,i.height-1),a(i.width-1,i.height-1),(100*t/(d.length/4)).toFixed(1)+"%")})()' <URL>
+  ```
+  Il 2026-10-09 le tre foto delle birre in linea erano già trasparenti: accendere lo
+  scontorno per le birre non ha richiesto di rifare niente.
+- **Aspettare il deploy di Vercel senza `sleep` in primo piano**: un `until` in background
+  sullo stato del commit, che notifica una volta sola quando finisce.
+  ```bash
+  until s=$(gh api repos/momoelo1/detoma-backend/commits/<sha>/status --jq .state) && [ "$s" != pending ]; do sleep 10; done; echo $s
+  ```
 - **I `--hold` si accumulano fra una sessione e l'altra.** Avviati con `Start-Process`,
   sopravvivono alla chiamata che li ha creati; e uccidere *chi ascolta la porta 3011* non
   tocca né il driver né il suo `mongo_killer.js`, che restano su con il mongod effimero. Il
