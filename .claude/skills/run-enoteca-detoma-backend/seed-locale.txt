@@ -22,7 +22,7 @@ expect 201
 post /api/wines {"name":"Cerasuolo di prova","category":"rosati","regione":"Abruzzo","paese":"Italia","annate":[{"anno":"2023","prezzo":11}]}
 expect 201
 
-post /api/beers {"name":"Birra di prova","producer":"ribaldi","stile":"birra rossa","formato":33,"prezzo":5,"consigliato":true}
+post /api/beers {"name":"Birra di prova","producer":"ribadi","stile":"birra rossa","formato":33,"prezzo":5,"consigliato":true}
 expect 201
 
 post /api/alimentari {"name":"Formaggio di prova","category":"gastronomia","sottocategoria":"Formaggi","tipo":"Formaggio","formato":250,"prezzo":9}

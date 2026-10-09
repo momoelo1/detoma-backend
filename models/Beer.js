@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 // (il birrificio), non una categoria di stile
 const PRODUCERS = [
   "32-via-dei-birrai",
-  "ribaldi",
+  "ribadi",
   "gjulia",
   "mont-blanc",
   "forte",

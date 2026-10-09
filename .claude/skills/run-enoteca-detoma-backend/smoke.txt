@@ -68,7 +68,7 @@ expect 200
 expect-body Barolo del driver
 
 # --- birre e alimentari: stesso contratto
-post /api/beers {"name":"Birra del driver","producer":"ribaldi","formato":33,"prezzo":5}
+post /api/beers {"name":"Birra del driver","producer":"ribadi","formato":33,"prezzo":5}
 expect 201
 save beerId id
 post /api/beers {"name":"Birrificio inesistente","producer":"acme"}
