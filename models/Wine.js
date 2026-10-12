@@ -51,7 +51,9 @@ const AnnataSchema = new mongoose.Schema(
     // cancellarlo qui farebbe sparire il prezzo da tutti i vini già
     // salvati — cioè da tutto il catalogo. Chi legge prova prima
     // `formati`, poi ricade qui (utils/prezzo.js lato sito).
-    // Lo toglie `scripts/migraPrezziInFormati.js`, quando lo si lancia.
+    // La migrazione è fatta (2026-10-09: nessuna annata in linea dipende più
+    // da questo campo) e il suo script cancellato: toglierlo ora si può, ma
+    // non è ancora stato deciso.
     prezzo: { type: Number },
   },
   { _id: false },
