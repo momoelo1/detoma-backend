@@ -238,6 +238,55 @@ Verified: `Importati 46 alimentari (senza immagini).`, and `GET
 http://localhost:3011/api/alimentari` on the held server then returns 46. In PowerShell
 `$env:X=''` removes the variable, so the shell is clean afterwards.
 
+## Crediti Cloudinary: leggere il consumo e provare la guardia (2026-10-12)
+
+Il 2026-10-10 Cloudinary ha **disattivato l'account** (tutte le foto del sito rotte) per
+crediti sforati. Il piano Free ha **25 crediti** su una finestra **mobile di 30 giorni**:
+non c'è un azzeramento mensile, ogni giorno esce il consumo di 31 giorni prima. Il
+supporto ne ha aggiunti in via eccezionale (il limite letto è 37: non si sa se per
+sempre). Quasi tutto il consumo è lo scontorno: **ogni `e_background_removal` vale 75
+trasformazioni = 0,075 crediti**. Il resto del negozio sta intorno ai 5 crediti.
+
+**Leggere, da `backend/`, solo lettura** (ogni chiamata Admin costa una delle 500/ora del
+limite di frequenza, nessun credito):
+
+```bash
+# totale della finestra: credits.usage / credits.limit, e last_updated
+node -e 'require("dotenv").config();require("cloudinary").v2.api.usage().then(u=>console.log(u.plan,u.last_updated,u.credits,u.transformations))'
+# il consumo di UN giorno (dd-mm-yyyy): sommando i giorni si ricostruisce la finestra
+# e si calcola quando si torna sotto il limite
+node -e 'require("dotenv").config();require("cloudinary").v2.api.usage({date:"08-10-2026"}).then(u=>console.log(u.transformations))'
+```
+
+`transformations.breakdown.background_removal` dice quanti scontorni. **`usage()` è in
+ritardo di un giorno** (`last_updated` = ieri): per questo la guardia somma le foto
+caricate col tag `scontornata` da quella data in poi. La Search API funziona sul piano
+Free: `cloudinary.search.expression("tags=scontornata AND uploaded_at>=2026-10-11")`.
+
+**La guardia** (`controllaCrediti` in `utils/cloudinary.js`): prima di caricare, guarda le
+foto nuove sul base64 (`giaScontornata`). Se qualcuna va scontornata e si supererebbe il
+**90% del limite**, rifiuta tutta la richiesta con 429 e non carica niente, nemmeno la
+grezza. È una scelta del titolare. Se il controllo stesso fallisce, rifiuta comunque.
+Provarla:
+
+```bash
+node .claude/skills/run-enoteca-detoma-backend/prova-crediti.cjs
+```
+
+15 casi, `15 ok, 0 fail`, exit 0 (2026-10-12). I caricamenti sono finti (`uploader.upload`
+sostituito), quindi non tocca l'archivio. La riga `INFO account vero` legge il consumo
+vero e riporta se oggi una foto da scontornare passerebbe; quel giorno: 41,14 su un
+tetto di 33,30, bloccata. Il tetto si legge dal vivo (`credits.limit`), quindi se il
+limite torna a 25 non c'è niente da cambiare: due casi lo coprono.
+
+**Cancellare file su Cloudinary** non consuma crediti, e alleggerisce lo storage.
+`api.delete_resources(ids, { resource_type })` accetta 100 id per chiamata, una
+chiamata per tipo (`image`, `video`). Il 2026-10-12 sono stati tolti i 64 file demo che
+Cloudinary crea all'apertura (`samples/…`, `cld-sample*`, `sample`, `main-sample`;
+177,5 MB, 4 erano mp4): restano solo le 543 foto del negozio più 8 `N_back_*` di giugno,
+inutilizzate e lasciate lì. Prima di cancellare: elenca, controlla che nessun id inizi
+con `enoteca-detoma/`, poi ricontrolla dopo.
+
 ## Aggiustare i DATI in produzione (non il codice)
 
 Quando il difetto è nei dati e non nel programma — valori sporchi, doppioni,
@@ -356,7 +405,11 @@ Get-NetTCPConnection -LocalPort 3001 -State Listen | ForEach-Object { Stop-Proce
 - **`CLOUDINARY_URL` is deliberately sabotaged in the driver.** The controllers upload
   anything starting with `data:image` to Cloudinary, and `.env` holds the shop's real
   account. Don't put a base64 data URI in a driver script expecting it to work — it is
-  meant to fail.
+  meant to fail. **How it fails changed on 2026-10-12:** a photo that would be cut out
+  (wines, beers, distillati, not already transparent) now stops at the credit guard
+  *before* the upload, with **429** "In questo momento non riesco a controllare il
+  limite delle foto…", and nothing is saved, not even on a PUT. Verified with the
+  driver. An alimentare photo still reaches the upload and gets the old 500.
 - **`utils/config.js` tells you to see `.env.example`. That file does not exist in this
   repo** (the frontend has one; this one doesn't). The full list is: `MONGODB_URI`,
   `SECRET`, `CLIENT_URL` (required), plus `CLOUDINARY_URL`, `CLIENT_URL_ALT`, `PORT`, and

@@ -89,6 +89,9 @@ const errorHandler = (error, req, res, next) => {
     error.message.includes("E11000 duplicate key error")
   ) {
     return res.status(400).json({ error: "Esiste già un elemento con questi dati." });
+  } else if (error.name === "CreditiFotoError") {
+    // foto rifiutata per non sforare i crediti di Cloudinary (utils/cloudinary.js)
+    return res.status(429).json({ error: error.message });
   }
   // NB: qui non arriva mai un errore di JWT. `getTokenFrom` cattura sia
   // JsonWebTokenError sia TokenExpiredError e risponde già 401 da

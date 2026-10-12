@@ -1,5 +1,5 @@
 const cloudinary = require("cloudinary").v2;
-const { scontorna } = require("./scontorno");
+const { scontorna, decodifica, giaScontornata, motoreAttivo } = require("./scontorno");
 
 // Configures itself automatically from process.env.CLOUDINARY_URL
 // (the single connection string shown on the Cloudinary dashboard).
@@ -13,14 +13,95 @@ const isBase64Image = (value) => typeof value === "string" && value.startsWith("
 // documento resta l'URL di quest'ultima, la grezza viene cancellata. Se il
 // motore fallisce — rete, crediti finiti, foto strana — si tiene la grezza e
 // si scrive un rigo di log: il salvataggio del negozio non deve mai saltare
-// per colpa dello scontorno.
+// per colpa dello scontorno. L'unica eccezione è il tetto ai crediti, qui
+// sotto: lì il salvataggio viene rifiutato apposta, PRIMA di caricare.
 //
 // La foto pulita arriva da utils/scontorno.js già codificata in **webp** —
 // il formato che il negozio usa per le sue foto, con il canale alpha — e
 // viene caricata così com'è.
 const FORMATO_PULITA = "webp";
 
-const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {}) => {
+// Tetto ai crediti dello scontorno.
+//
+// Il piano gratuito di Cloudinary ha 37 crediti su una finestra MOBILE di 30
+// giorni: non si azzera a inizio mese, ogni giorno esce il consumo di 31
+// giorni prima. Superarli non costa soldi, costa di peggio: Cloudinary
+// DISATTIVA l'account, e con lui tutte le foto del sito — successo il
+// 2026-10-10. Il grosso lo fa lo scontorno: ogni `e_background_removal` conta
+// 75 trasformazioni, cioè 0,075 crediti (dal resoconto d'uso del 2026-10-12:
+// 487 scontorni = 36,5 dei 41,3 crediti della finestra); tutto il resto del
+// negozio ne consuma circa 5.
+//
+// Quindi, prima di caricare foto che andrebbero scontornate, si guarda il
+// consumo, e vicino al tetto si RIFIUTA il salvataggio intero: nessuna foto
+// caricata, nemmeno la grezza al posto della pulita — scelta del titolare. Il
+// pannello mostra il messaggio (vedi `errorHandler` in utils/middleware.js); il
+// resto del prodotto si salva togliendo la foto nuova.
+//
+// `usage()` da solo non basta: Cloudinary lo aggiorna una volta al giorno
+// (`last_updated` è la data di ieri), e il 2026-10-08 gli scontorni sono stati
+// 49 in un giorno solo. Per questo la foto pulita viene caricata col tag
+// `scontornata`, e al resoconto si sommano quelle caricate da `last_updated`
+// in poi, contate con la Search API. Il giorno di `last_updated` può finire
+// contato due volte: l'errore sta dalla parte prudente.
+//
+// Con Pixelcut acceso lo scontorno non tocca i crediti di Cloudinary, e il
+// controllo non serve.
+const SOGLIA_CREDITI = 0.9; // la stessa a cui Cloudinary manda il primo avviso
+const CREDITI_PER_SCONTORNO = 0.075;
+const TAG_SCONTORNATA = "scontornata";
+
+const MESSAGGIO_LIMITE =
+  "Per qualche giorno non si possono caricare nuove foto di bottiglie: il limite gratuito per togliere gli sfondi è quasi finito. Il resto del prodotto si può salvare togliendo la foto nuova.";
+const MESSAGGIO_CONTROLLO =
+  "In questo momento non riesco a controllare il limite delle foto. Riprova tra qualche minuto.";
+
+// l'errorHandler lo riconosce dal nome, come i CastError di Mongoose
+const erroreCrediti = (messaggio) => Object.assign(new Error(messaggio), { name: "CreditiFotoError" });
+
+// Quante delle foto nuove passeranno davvero dal motore. Si decide QUI, sul
+// base64 arrivato dal pannello e prima di caricare qualunque cosa, con la
+// stessa regola che `scontorna` applica dopo: le foto già scontornate non
+// costano niente e non devono essere bloccate. Una alla volta, non in
+// parallelo: una foto da fotocamera decodificata pesa decine di MB.
+const quanteDaScontornare = async (elenco) => {
+  let n = 0;
+  for (const img of elenco.filter(isBase64Image)) {
+    const buf = Buffer.from(img.slice(img.indexOf(",") + 1), "base64");
+    if (!giaScontornata(await decodifica(buf))) n++;
+  }
+  return n;
+};
+
+const controllaCrediti = async (elenco, { scontorna: daScontornare = false } = {}) => {
+  if (!daScontornare || motoreAttivo() !== "cloudinary") return;
+  const nuove = await quanteDaScontornare(elenco);
+  if (nuove === 0) return;
+
+  // Se il controllo stesso fallisce (rete, account già disattivato) non si
+  // carica: senza il numero non si può sapere se si è sotto il tetto.
+  let usati, tetto;
+  try {
+    const { credits, last_updated: aggiornato } = await cloudinary.api.usage();
+    const { total_count: recenti } = await cloudinary.search
+      .expression(`tags=${TAG_SCONTORNATA} AND uploaded_at>=${aggiornato}`)
+      .max_results(1)
+      .execute();
+    usati = credits.usage + recenti * CREDITI_PER_SCONTORNO;
+    tetto = credits.limit * SOGLIA_CREDITI;
+  } catch (err) {
+    console.error(`controllo crediti fallito (${err.message || err.error?.message})`);
+    throw erroreCrediti(MESSAGGIO_CONTROLLO);
+  }
+  if (!(usati + nuove * CREDITI_PER_SCONTORNO <= tetto)) {
+    console.error(
+      `crediti: ${usati.toFixed(2)} usati + ${nuove} scontorni oltre il tetto di ${tetto.toFixed(2)}: caricamento rifiutato`
+    );
+    throw erroreCrediti(MESSAGGIO_LIMITE);
+  }
+};
+
+const caricaUna = async (img, folder, { scontorna: daScontornare = false } = {}) => {
   if (!isBase64Image(img)) return img;
   const grezza = await cloudinary.uploader.upload(img, { folder });
   if (!daScontornare) return grezza.secure_url;
@@ -29,7 +110,7 @@ const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {
     if (!webp) return grezza.secure_url; // arrivata già scontornata
     const pulita = await cloudinary.uploader.upload(
       `data:image/${FORMATO_PULITA};base64,${webp.toString("base64")}`,
-      { folder }
+      { folder, tags: [TAG_SCONTORNATA] }
     );
     await cloudinary.uploader.destroy(grezza.public_id);
     return pulita.secure_url;
@@ -37,6 +118,14 @@ const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {
     console.error(`scontorno fallito (${err.message}): tengo la foto com'è`);
     return grezza.secure_url;
   }
+};
+
+// Il controllo dei crediti sta qui e in `uploadImages`, una volta per
+// richiesta e PRIMA di qualunque caricamento: se blocca, su Cloudinary non
+// resta niente e in archivio non si salva niente.
+const uploadImage = async (img, folder, opzioni = {}) => {
+  await controllaCrediti([img], opzioni);
+  return caricaUna(img, folder, opzioni);
 };
 
 // Più foto per prodotto (i vini, da 2026-09-09: `img` è un array).
@@ -51,11 +140,12 @@ const uploadImage = async (img, folder, { scontorna: daScontornare = false } = {
 // vini, una chiamata allo scontorno, cioè secondi. Tre foto in fila sarebbero
 // tre volte l'attesa e su Vercel il salvataggio rischierebbe il timeout della
 // funzione; in parallelo l'attesa resta quella della più lenta. Le foto già
-// caricate (URL Cloudinary) non fanno nessuna chiamata: `uploadImage` le
+// caricate (URL Cloudinary) non fanno nessuna chiamata: `caricaUna` le
 // restituisce com'erano, quindi risalvare un vino non ricarica niente.
-const uploadImages = async (img, folder, opzioni) => {
+const uploadImages = async (img, folder, opzioni = {}) => {
   const elenco = (Array.isArray(img) ? img : [img]).filter(Boolean);
-  return Promise.all(elenco.map((una) => uploadImage(una, folder, opzioni)));
+  await controllaCrediti(elenco, opzioni);
+  return Promise.all(elenco.map((una) => caricaUna(una, folder, opzioni)));
 };
 
 // ricava il public_id (es. "enoteca-detoma/wines/abc123") da un secure_url

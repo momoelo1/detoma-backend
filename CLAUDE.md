@@ -101,8 +101,9 @@ It has no legacy `annate[].prezzo`. Stored in the `distillati` collection.
 `annate[].prezzo` is **legacy and still in the schema on purpose.** Mongoose only returns
 paths it knows, so deleting it would blank the price of every un-migrated wine — i.e. the
 whole catalogue. Readers try `formati` first and fall back to it (`utils/prezzo.js` →
-`formatiAnnata` on the frontend). `scripts/migraPrezziInFormati.js` converts the old shape;
-only once it has run can the field go.
+`formatiAnnata` on the frontend). The migration to `formati` is done — measured on the
+live API on 2026-10-09: 519 of 520 annate have `formati`, none relies on the legacy price —
+and its script was deleted. Removing the field is now possible but has not been decided.
 
 ### Images
 
@@ -120,6 +121,17 @@ already arrives cut out (transparent corners, >30% transparent) is left alone, s
 engine is never billed for the shop's hand-made cut-outs. If the engine fails, the raw
 photo is kept and a line is logged — a save must never fail because of the cut-out.
 
+**One deliberate exception: the credit guard** (`controllaCrediti` in `utils/cloudinary.js`).
+The free Cloudinary plan is 37 credits over a **rolling 30-day window**; going over it
+**disables the account and every photo on the site** (happened 2026-10-10). Each
+`e_background_removal` costs 0.075 credits. Before uploading anything, the guard checks
+each new base64 photo locally (`giaScontornata`): if any needs cutting out, it reads
+`usage()` plus the removals uploaded since `last_updated` (clean photos carry the tag
+`scontornata`, counted with the Search API, because `usage()` lags a day). If the total
+would pass **90% of the limit**, or the check itself fails, the whole request gets **429**
+with an Italian message, and nothing is uploaded or saved. That includes the raw photo,
+by the owner's choice. Already-clean photos, alimentari and the Pixelcut engine skip the check.
+
 The engine is chosen by env: `PIXELCUT_API_KEY` set → Pixelcut's API (5 credits/photo;
 **never call it from the browser** — their docs forbid it and the key would ship in the
 bundle); unset → Cloudinary's `e_background_removal`, included in the plan. Cloudinary's
@@ -127,8 +139,9 @@ mask is soft (a wide alpha 201–254 band that reads as a pale halo on cards); t
 hardening step in `scontorno.js` is what makes it usable, and its thresholds were
 measured, not guessed — read the header comment before changing them.
 
-`scripts/scontornaFotoVini.js --dry-run` applies the same treatment to photos uploaded
-before this existed. `sharp` is a native dependency: it ships a prebuilt binary per
+The photos uploaded before this existed were redone once by `scripts/scontornaFotoVini.js`
+(2026-09-07, then deleted; it's in git history if a save ever falls back to the raw photo).
+`sharp` is a native dependency: it ships a prebuilt binary per
 platform, which is why `npm install` on Vercel works without a build step.
 
 ### Auth is single-account
@@ -170,7 +183,8 @@ from a real phone against a local backend.
 
 `scripts/` holds only live, runnable scripts. Spent migrations are **deleted**, not kept
 with their data stripped out — `importRossi.js` and `importBirre.js` went that way on
-2026-08-11, once their 207 reds and 37 beers were in production.
+2026-08-11, once their 207 reds and 37 beers were in production, and
+`migraPrezziInFormati.js` and `scontornaFotoVini.js` on 2026-10-09.
 
 What is left, and why:
 

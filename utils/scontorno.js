@@ -151,6 +151,7 @@ const scontorna = async (url) => {
 
 module.exports = {
   scontorna,
+  decodifica,
   giaScontornata,
   indurisci,
   motoreAttivo,
