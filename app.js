@@ -18,7 +18,9 @@ const logger = require("./utils/logger");
 
 mongoose.set("strictQuery", false);
 
-logger.info("connecting to", config.MONGODB_URI);
+// l'indirizzo NON si scrive nel log: contiene utente e password del database,
+// e i log di Vercel li legge chiunque abbia accesso al progetto
+logger.info("connecting to mongoDB");
 // tenuta come promise (non solo side-effect): su Vercel un cold start può
 // impiegare più dei 10s di buffering interno di Mongoose, quindi le richieste
 // aspettano esplicitamente questa promise invece di affidarsi al buffer -
