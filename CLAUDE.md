@@ -122,13 +122,15 @@ engine is never billed for the shop's hand-made cut-outs. If the engine fails, t
 photo is kept and a line is logged — a save must never fail because of the cut-out.
 
 **One deliberate exception: the credit guard** (`controllaCrediti` in `utils/cloudinary.js`).
-The free Cloudinary plan is 37 credits over a **rolling 30-day window**; going over it
+The free Cloudinary plan is 25 credits over a **rolling 30-day window** (support added 12
+more after the 2026-10-10 block, valid only until 2026-11-09); going over it
 **disables the account and every photo on the site** (happened 2026-10-10). Each
 `e_background_removal` costs 0.075 credits. Before uploading anything, the guard checks
 each new base64 photo locally (`giaScontornata`): if any needs cutting out, it reads
 `usage()` plus the removals uploaded since `last_updated` (clean photos carry the tag
 `scontornata`, counted with the Search API, because `usage()` lags a day). If the total
-would pass **90% of the limit**, or the check itself fails, the whole request gets **429**
+would pass **90% of the limit — counted on 25 even while Cloudinary grants more**
+(`LIMITE_MAX`, so usage can't be above 25 when the bonus ends), or the check itself fails, the whole request gets **429**
 with an Italian message, and nothing is uploaded or saved. That includes the raw photo,
 by the owner's choice. Already-clean photos, alimentari and the Pixelcut engine skip the check.
 

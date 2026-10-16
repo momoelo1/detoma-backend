@@ -78,16 +78,23 @@ const caso = async (nome, fn, atteso) => {
   setRecenti(200);
   await caso("20 + 200 scontorni non ancora nel resoconto", () => uploadImages([sfondo], "prova", S), { esito: "limite", caricate: 0 });
 
-  // il bordo: 37 × 0,9 = 33,3
-  setUsage(() => ({ credits: { usage: 33.2, limit: 37 }, last_updated: "2026-10-11" }));
+  // il bordo: anche con 37 crediti concessi il tetto si calcola su 25
+  // (LIMITE_MAX in utils/cloudinary.js), quindi 25 × 0,9 = 22,5
+  setUsage(() => ({ credits: { usage: 22.4, limit: 37 }, last_updated: "2026-10-11" }));
   setRecenti(0);
-  await caso("33,2 + 1 foto (33,275)", () => uploadImages([sfondo], "prova", S), { esito: "passa", caricate: 1 });
-  await caso("33,2 + 2 foto (33,35)", () => uploadImages([sfondo, sfondo], "prova", S), { esito: "limite", caricate: 0 });
-  await caso("33,2 + 1 da scontornare + 1 pulita", () => uploadImages([sfondo, pulita], "prova", S), { esito: "passa", caricate: 2 });
+  await caso("limite 37, tetto su 25: 22,4 + 1 foto (22,475)", () => uploadImages([sfondo], "prova", S), { esito: "passa", caricate: 1 });
+  await caso("limite 37, tetto su 25: 22,4 + 2 foto (22,55)", () => uploadImages([sfondo, sfondo], "prova", S), { esito: "limite", caricate: 0 });
+  await caso("22,4 + 1 da scontornare + 1 pulita", () => uploadImages([sfondo, pulita], "prova", S), { esito: "passa", caricate: 2 });
+  setUsage(() => ({ credits: { usage: 30, limit: 37 }, last_updated: "2026-10-11" }));
+  await caso("limite 37: 30 + 1 (sotto 33,3 ma sopra 22,5)", () => uploadImages([sfondo], "prova", S), { esito: "limite", caricate: 0 });
   setUsage(() => ({ credits: { usage: 20, limit: 25 }, last_updated: "2026-10-11" }));
   await caso("limite tornato a 25: 20 + 1 (tetto 22,5)", () => uploadImages([sfondo], "prova", S), { esito: "passa", caricate: 1 });
   setUsage(() => ({ credits: { usage: 22.5, limit: 25 }, last_updated: "2026-10-11" }));
   await caso("limite 25: 22,5 + 1", () => uploadImages([sfondo], "prova", S), { esito: "limite", caricate: 0 });
+  setUsage(() => ({ credits: { usage: 17, limit: 20 }, last_updated: "2026-10-11" }));
+  await caso("limite vero sotto 25 (20): 17 + 1, tetto 18", () => uploadImages([sfondo], "prova", S), { esito: "passa", caricate: 1 });
+  setUsage(() => ({ credits: { usage: 18, limit: 20 }, last_updated: "2026-10-11" }));
+  await caso("limite vero sotto 25 (20): 18 + 1", () => uploadImages([sfondo], "prova", S), { esito: "limite", caricate: 0 });
 
   setUsage(() => { throw { error: { message: "disabled customer" } }; });
   await caso("usage() in errore: si blocca", () => uploadImages([sfondo], "prova", S), { esito: "controllo", caricate: 0 });

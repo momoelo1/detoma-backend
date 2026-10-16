@@ -23,9 +23,10 @@ const FORMATO_PULITA = "webp";
 
 // Tetto ai crediti dello scontorno.
 //
-// Il piano gratuito di Cloudinary ha 37 crediti su una finestra MOBILE di 30
+// Il piano gratuito di Cloudinary ha 25 crediti su una finestra MOBILE di 30
 // giorni: non si azzera a inizio mese, ogni giorno esce il consumo di 31
-// giorni prima. Superarli non costa soldi, costa di peggio: Cloudinary
+// giorni prima. (Dopo il blocco il supporto ne ha aggiunti 12, ma solo fino
+// al 9 novembre 2026: vedi LIMITE_MAX più sotto.) Superarli non costa soldi, costa di peggio: Cloudinary
 // DISATTIVA l'account, e con lui tutte le foto del sito — successo il
 // 2026-10-10. Il grosso lo fa lo scontorno: ogni `e_background_removal` conta
 // 75 trasformazioni, cioè 0,075 crediti (dal resoconto d'uso del 2026-10-12:
@@ -48,6 +49,15 @@ const FORMATO_PULITA = "webp";
 // Con Pixelcut acceso lo scontorno non tocca i crediti di Cloudinary, e il
 // controllo non serve.
 const SOGLIA_CREDITI = 0.9; // la stessa a cui Cloudinary manda il primo avviso
+
+// Il tetto si calcola su 25 anche quando Cloudinary dice di più (2026-10-16).
+// I 12 crediti in più del supporto (37 in tutto) valgono solo fino al 9
+// novembre, mentre ogni scontorno resta nella finestra per 30 giorni:
+// contando su 37, la guardia lascerebbe salire il consumo oltre 25 proprio
+// prima che il limite torni lì, e da quel giorno l'account sarebbe di nuovo
+// oltre il limite — cioè disattivato, foto del sito comprese. Se un giorno il
+// limite vero fosse più basso di 25, vale quello.
+const LIMITE_MAX = 25;
 const CREDITI_PER_SCONTORNO = 0.075;
 const TAG_SCONTORNATA = "scontornata";
 
@@ -88,7 +98,7 @@ const controllaCrediti = async (elenco, { scontorna: daScontornare = false } = {
       .max_results(1)
       .execute();
     usati = credits.usage + recenti * CREDITI_PER_SCONTORNO;
-    tetto = credits.limit * SOGLIA_CREDITI;
+    tetto = Math.min(credits.limit, LIMITE_MAX) * SOGLIA_CREDITI;
   } catch (err) {
     console.error(`controllo crediti fallito (${err.message || err.error?.message})`);
     throw erroreCrediti(MESSAGGIO_CONTROLLO);

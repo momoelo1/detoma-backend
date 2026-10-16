@@ -273,11 +273,14 @@ Provarla:
 node .claude/skills/run-enoteca-detoma-backend/prova-crediti.cjs
 ```
 
-15 casi, `15 ok, 0 fail`, exit 0 (2026-10-12). I caricamenti sono finti (`uploader.upload`
+18 casi, `18 ok, 0 fail`, exit 0 (2026-10-16; erano 15 il 2026-10-12). I caricamenti sono finti (`uploader.upload`
 sostituito), quindi non tocca l'archivio. La riga `INFO account vero` legge il consumo
 vero e riporta se oggi una foto da scontornare passerebbe; quel giorno: 41,14 su un
-tetto di 33,30, bloccata. Il tetto si legge dal vivo (`credits.limit`), quindi se il
-limite torna a 25 non c'è niente da cambiare: due casi lo coprono.
+tetto di 33,30, bloccata; il 2026-10-16, 39,88 su un tetto di 22,50. Dal 2026-10-16 il
+tetto è il 90% del limite letto dal vivo (`credits.limit`) **ma mai oltre 25**
+(`LIMITE_MAX` in utils/cloudinary.js): i 12 crediti in più del supporto scadono il
+2026-11-09 e uno scontorno resta nella finestra 30 giorni. Se il limite vero scende sotto
+25 vale quello: due casi lo coprono.
 
 **Cancellare file su Cloudinary** non consuma crediti, e alleggerisce lo storage.
 `api.delete_resources(ids, { resource_type })` accetta 100 id per chiamata, una
